@@ -2,13 +2,15 @@ const https = require('https');
 
 const sendEmail = async ({ to, subject, html, text }) => {
   try {
-    const apiKey = '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';
-    const fromEmail = 'md94rakibulislam@gmail.com';
-    const fromName = 'RMSR Food';
+    const apiKey = process.env.SENDGRID_API_KEY;
+    if (!apiKey) {
+      console.log('Email skipped: SENDGRID_API_KEY not set');
+      return;
+    }
 
     const data = JSON.stringify({
       personalizations: [{ to: [{ email: to }] }],
-      from: { email: fromEmail, name: fromName },
+      from: { email: 'md94rakibulislam@gmail.com', name: 'RMSR Food' },
       subject: subject,
       content: [{ type: 'text/html', value: html || text || subject }]
     });
@@ -35,7 +37,7 @@ const sendEmail = async ({ to, subject, html, text }) => {
             resolve();
           } else {
             console.error('SendGrid error:', res.statusCode, body);
-            reject(new Error(`SendGrid status ${res.statusCode}: ${body}`));
+            reject(new Error(`SendGrid ${res.statusCode}`));
           }
         });
       });
@@ -46,7 +48,6 @@ const sendEmail = async ({ to, subject, html, text }) => {
 
   } catch (error) {
     console.error('Email error:', error.message);
-    // Never throw — email failure must not break main flow
   }
 };
 
