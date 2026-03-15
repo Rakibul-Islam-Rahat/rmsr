@@ -1,0 +1,127 @@
+.rider-offline-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff8e1;
+  color: #f57f17;
+  padding: 12px 28px;
+  font-size: 14px;
+  font-weight: 600;
+  border-bottom: 1px solid #ffe082;
+}
+
+.rider-info-sidebar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rider-avatar-sm {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.rider-order-card {
+  padding: 18px 20px;
+}
+
+.rider-order-card.active-delivery {
+  border-left: 4px solid var(--accent);
+}
+
+.rider-order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.rider-order-number {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+  font-weight: 600;
+}
+
+.rider-restaurant-name {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.rider-restaurant-address {
+  font-size: 13px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rider-order-amount {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.rider-delivery-info {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-bottom: 14px;
+}
+
+.rider-order-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.rider-delivery-route {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.route-point {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 0;
+}
+
+.route-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--primary);
+  flex-shrink: 0;
+}
+
+.route-dot.deliver {
+  background: var(--accent);
+}
+
+.route-line {
+  width: 2px;
+  height: 20px;
+  background: var(--border);
+  margin-left: 5px;
+}

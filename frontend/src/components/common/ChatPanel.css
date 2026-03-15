@@ -1,0 +1,127 @@
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  height: 440px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+.chat-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--dark);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.chat-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.chat-panel-close {
+  background: rgba(255,255,255,0.12);
+  border: none;
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.chat-panel-close:hover { background: rgba(255,255,255,0.25); }
+
+.chat-panel-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg-secondary);
+}
+
+.chat-status-msg {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: auto;
+  padding: 20px;
+}
+
+.chat-bubble {
+  max-width: 78%;
+  display: flex;
+  flex-direction: column;
+}
+.chat-bubble.mine { align-self: flex-end; }
+.chat-bubble.theirs { align-self: flex-start; }
+
+.chat-sender-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+  padding-left: 4px;
+}
+.sender-role { font-weight: 400; text-transform: capitalize; }
+
+.bubble-text {
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.chat-bubble.mine .bubble-text {
+  background: var(--primary);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.chat-bubble.theirs .bubble-text {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-bottom-left-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+.bubble-time {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  padding: 0 4px;
+}
+.chat-bubble.mine .bubble-time { text-align: right; }
+
+.chat-panel-input {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-primary);
+  flex-shrink: 0;
+}
+.chat-panel-input .form-input {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+.send-btn {
+  padding: 10px 14px;
+  flex-shrink: 0;
+}
+.send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

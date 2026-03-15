@@ -1,0 +1,113 @@
+.restaurant-card {
+  text-decoration: none;
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: var(--transition);
+}
+
+.restaurant-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+.restaurant-card.featured { border: 2px solid var(--secondary); }
+
+.restaurant-cover {
+  height: 160px;
+  overflow: hidden;
+  background: var(--bg-tertiary);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.restaurant-cover img { width: 100%; height: 100%; object-fit: cover; transition: var(--transition); }
+.restaurant-card:hover .restaurant-cover img { transform: scale(1.05); }
+.restaurant-cover-placeholder { font-size: 60px; }
+
+.featured-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: var(--secondary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.closed-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.restaurant-body { padding: 14px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+
+.restaurant-header { display: flex; gap: 10px; align-items: flex-start; }
+
+.restaurant-logo-small {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--primary);
+  flex-shrink: 0;
+  border: 2px solid var(--border);
+}
+
+.restaurant-logo-small img { width: 100%; height: 100%; object-fit: cover; }
+
+.restaurant-name { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+.restaurant-cuisine { font-size: 12px; color: var(--text-muted); }
+
+.restaurant-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.star-icon { color: var(--secondary); fill: var(--secondary); }
+.rating-count { color: var(--text-muted); font-weight: 400; }
+
+.restaurant-footer { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+
+.min-order {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.tag-pill {
+  font-size: 11px;
+  color: var(--primary);
+  background: rgba(192,57,43,0.08);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}

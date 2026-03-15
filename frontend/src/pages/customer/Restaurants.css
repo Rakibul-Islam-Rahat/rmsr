@@ -1,0 +1,15 @@
+.restaurants-page { padding: 40px 0 60px; }
+.restaurants-header { margin-bottom: 24px; }
+.restaurants-header h1 { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
+.restaurants-header p { color: var(--text-muted); font-size: 15px; }
+.restaurants-controls { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; }
+.search-bar { position: relative; flex: 1; display: flex; align-items: center; gap: 8px; }
+.search-icon-sm { position: absolute; left: 14px; color: var(--text-muted); pointer-events: none; }
+.search-bar .form-input { padding-left: 42px; flex: 1; }
+.sort-select { max-width: 200px; }
+.cuisine-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 28px; }
+.cuisine-filter-btn { padding: 8px 16px; border-radius: 20px; border: 2px solid var(--border); background: var(--bg-primary); font-size: 13px; font-weight: 600; cursor: pointer; transition: var(--transition); font-family: var(--font-body); color: var(--text-secondary); }
+.cuisine-filter-btn:hover, .cuisine-filter-btn.active { border-color: var(--primary); color: var(--primary); background: rgba(192,57,43,0.06); }
+.pagination { display: flex; justify-content: center; gap: 8px; margin-top: 40px; }
+.page-btn { width: 40px; height: 40px; border-radius: 10px; border: 2px solid var(--border); background: var(--bg-primary); font-size: 14px; font-weight: 600; cursor: pointer; transition: var(--transition); font-family: var(--font-body); }
+.page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
