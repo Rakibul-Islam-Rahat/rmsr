@@ -23,6 +23,7 @@ export default function RiderDashboard() {
   const [unreadChats, setUnreadChats] = useState({});
   const socketRef = useRef(null);
   const locationIntervalRef = useRef(null);
+  const locationAskedRef = useRef(false); // prevent repeated permission asks
   const activeOrderRef = useRef(null);
 
   useEffect(() => {
@@ -47,7 +48,10 @@ export default function RiderDashboard() {
     socket.on('connect', () => {
       if (user?._id) socket.emit('join_user', user._id);
     });
-    socket.on('new_order', () => { fetchOrders(); toast.success('New order available! 🛵'); });
+    socket.on('new_order', () => {
+      fetchOrders();
+      toast.success('New order available! 🛵');
+    });
     socket.on('reconnect', () => {
       if (user?._id) socket.emit('join_user', user._id);
     });
@@ -56,7 +60,10 @@ export default function RiderDashboard() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const [myRes, availRes] = await Promise.all([getRiderOrders(), getAvailableOrders()]);
+      const [myRes, availRes] = await Promise.all([
+        getRiderOrders(),
+        getAvailableOrders()
+      ]);
       setMyOrders(myRes.data.orders || []);
       setAvailableOrders(availRes.data.orders || []);
     } catch (_) {}
@@ -70,18 +77,58 @@ export default function RiderDashboard() {
         socketRef.current.emit('rider_location_update', {
           orderId: activeOrderRef.current._id,
           lat: loc.lat,
-          lng: loc.lng,
-          riderId: user?._id
+          lng: loc.lng
         });
       }
     } catch (_) {}
   };
 
   const startLocationTracking = () => {
+    // Prevent asking for location multiple times
+    if (locationIntervalRef.current) return;
+
     const defaultLoc = { lat: 25.7439, lng: 89.2752 };
 
-    const getAndSend = () => {
-      if (navigator.geolocation) {
+    const getLocation = () => {
+      // If we already know permission is denied, use default
+      if (locationAskedRef.current === 'denied') {
+        const loc = {
+          lat: defaultLoc.lat + (Math.random() - 0.5) * 0.002,
+          lng: defaultLoc.lng + (Math.random() - 0.5) * 0.002
+        };
+        setCurrentLocation(loc);
+        sendLocationUpdate(loc);
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        // No GPS support — use default
+        setCurrentLocation(defaultLoc);
+        sendLocationUpdate(defaultLoc);
+        locationAskedRef.current = 'denied';
+        return;
+      }
+
+      // Only request permission once
+      if (!locationAskedRef.current) {
+        locationAskedRef.current = 'asking';
+        navigator.geolocation.getCurrentPosition(
+          ({ coords }) => {
+            locationAskedRef.current = 'granted';
+            const loc = { lat: coords.latitude, lng: coords.longitude };
+            setCurrentLocation(loc);
+            sendLocationUpdate(loc);
+          },
+          () => {
+            // Permission denied or error — use simulated location
+            locationAskedRef.current = 'denied';
+            setCurrentLocation(defaultLoc);
+            sendLocationUpdate(defaultLoc);
+          },
+          { timeout: 8000, enableHighAccuracy: false, maximumAge: 30000 }
+        );
+      } else if (locationAskedRef.current === 'granted') {
+        // Already granted — get position silently
         navigator.geolocation.getCurrentPosition(
           ({ coords }) => {
             const loc = { lat: coords.latitude, lng: coords.longitude };
@@ -89,27 +136,20 @@ export default function RiderDashboard() {
             sendLocationUpdate(loc);
           },
           () => {
-            // GPS unavailable — use simulated movement for demo
-            setCurrentLocation(prev => {
-              const base = prev || defaultLoc;
-              const loc = {
-                lat: base.lat + (Math.random() - 0.5) * 0.001,
-                lng: base.lng + (Math.random() - 0.5) * 0.001
-              };
-              sendLocationUpdate(loc);
-              return loc;
-            });
+            // Silently use last known or default
+            const loc = currentLocation || defaultLoc;
+            sendLocationUpdate(loc);
           },
-          { timeout: 5000, enableHighAccuracy: false }
+          { timeout: 5000, enableHighAccuracy: false, maximumAge: 15000 }
         );
-      } else {
-        setCurrentLocation(defaultLoc);
-        sendLocationUpdate(defaultLoc);
       }
     };
 
-    getAndSend();
-    locationIntervalRef.current = setInterval(getAndSend, 10000);
+    // Get location immediately once
+    getLocation();
+
+    // Then every 10 seconds — no more permission popups
+    locationIntervalRef.current = setInterval(getLocation, 10000);
   };
 
   const stopLocationTracking = () => {
@@ -126,10 +166,11 @@ export default function RiderDashboard() {
       setIsOnline(res.data.isOnline);
       if (res.data.isOnline) {
         toast.success('You are now online! 🟢');
-        startLocationTracking();
+        startLocationTracking(); // only called once here
       } else {
         toast.success('You are now offline');
         stopLocationTracking();
+        locationAskedRef.current = false; // reset for next online session
       }
     } catch (_) {}
   };
@@ -140,14 +181,20 @@ export default function RiderDashboard() {
       toast.success('Order accepted! Head to the restaurant 🏍️');
       fetchOrders();
       setActiveTab('my');
-      if (!isOnline) { startLocationTracking(); setIsOnline(true); }
+      if (!isOnline) {
+        setIsOnline(true);
+        startLocationTracking();
+      }
     } catch (_) {}
   };
 
   const handleUpdateStatus = async (orderId, status) => {
     try {
       await updateOrderStatus(orderId, { status });
-      const msgs = { on_the_way: 'Marked as on the way!', delivered: 'Order delivered! ✅' };
+      const msgs = {
+        on_the_way: 'Marked as on the way! 🚀',
+        delivered: 'Order delivered! ✅'
+      };
       toast.success(msgs[status] || 'Status updated');
       fetchOrders();
       if (status === 'delivered') stopLocationTracking();
@@ -172,11 +219,18 @@ export default function RiderDashboard() {
       <aside className="dashboard-sidebar">
         <div className="sidebar-logo">
           <div className="sidebar-logo-icon">R</div>
-          <div><div className="sidebar-brand">RMSR Rider</div><div className="sidebar-sub">Delivery Portal</div></div>
+          <div>
+            <div className="sidebar-brand">RMSR Rider</div>
+            <div className="sidebar-sub">Delivery Portal</div>
+          </div>
         </div>
+
         <nav className="sidebar-nav">
-          <div className={`sidebar-link ${activeTab === 'available' ? 'active' : ''}`}
-            onClick={() => setActiveTab('available')} style={{ cursor: 'pointer' }}>
+          <div
+            className={`sidebar-link ${activeTab === 'available' ? 'active' : ''}`}
+            onClick={() => setActiveTab('available')}
+            style={{ cursor: 'pointer' }}
+          >
             <FiPackage /> Available
             {availableOrders.length > 0 && (
               <span style={{ marginLeft: 'auto', background: 'var(--primary)', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11 }}>
@@ -184,8 +238,11 @@ export default function RiderDashboard() {
               </span>
             )}
           </div>
-          <div className={`sidebar-link ${activeTab === 'my' ? 'active' : ''}`}
-            onClick={() => setActiveTab('my')} style={{ cursor: 'pointer' }}>
+          <div
+            className={`sidebar-link ${activeTab === 'my' ? 'active' : ''}`}
+            onClick={() => setActiveTab('my')}
+            style={{ cursor: 'pointer' }}
+          >
             <FiNavigation /> My Deliveries
             {myOrders.length > 0 && (
               <span style={{ marginLeft: 'auto', background: 'var(--secondary)', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 11 }}>
@@ -217,6 +274,7 @@ export default function RiderDashboard() {
             </div>
           </div>
         </div>
+
         <button className="sidebar-logout" onClick={() => { stopLocationTracking(); logout(); navigate('/'); }}>
           <FiLogOut /> Logout
         </button>
@@ -227,7 +285,10 @@ export default function RiderDashboard() {
           <h1 className="dashboard-title">
             {activeTab === 'available' ? 'Available Orders' : 'My Deliveries'}
           </h1>
-          <button className={`online-toggle ${isOnline ? 'online' : ''}`} onClick={handleToggleOnline}>
+          <button
+            className={`online-toggle ${isOnline ? 'online' : ''}`}
+            onClick={handleToggleOnline}
+          >
             <div className={`online-dot ${isOnline ? 'active' : ''}`} />
             {isOnline ? 'Online' : 'Go Online'}
           </button>
@@ -308,7 +369,9 @@ export default function RiderDashboard() {
                         <div className="rider-order-number">#{order.orderNumber}</div>
                         <div className="rider-restaurant-name">{order.restaurant?.name}</div>
                       </div>
-                      <span className={`badge status-${order.status}`}>{order.status?.replace(/_/g, ' ')}</span>
+                      <span className={`badge status-${order.status}`}>
+                        {order.status?.replace(/_/g, ' ')}
+                      </span>
                     </div>
                     <div className="rider-delivery-route">
                       <div className="route-point pickup">
@@ -365,7 +428,6 @@ export default function RiderDashboard() {
           )}
         </div>
 
-        {/* Floating chat panel */}
         {activeChatOrder && (
           <div style={{ position: 'fixed', bottom: 20, right: 20, width: 340, zIndex: 500, boxShadow: '0 8px 32px rgba(0,0,0,0.25)', borderRadius: 14 }}>
             <ChatPanel
