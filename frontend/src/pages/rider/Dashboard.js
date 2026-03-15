@@ -21,9 +21,11 @@ export default function RiderDashboard() {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [activeChatOrder, setActiveChatOrder] = useState(null);
   const [unreadChats, setUnreadChats] = useState({});
+
   const socketRef = useRef(null);
-  const locationIntervalRef = useRef(null);
-  const locationAskedRef = useRef(false); // prevent repeated permission asks
+  const watchIdRef = useRef(null);       // watchPosition ID — stops popup loop
+  const sendIntervalRef = useRef(null);  // sends location every 10s
+  const lastLocRef = useRef(null);       // stores last known location
   const activeOrderRef = useRef(null);
 
   useEffect(() => {
@@ -70,7 +72,7 @@ export default function RiderDashboard() {
     finally { setLoading(false); }
   };
 
-  const sendLocationUpdate = async (loc) => {
+  const sendLocation = async (loc) => {
     try {
       await updateRiderLocation(loc);
       if (socketRef.current && activeOrderRef.current) {
@@ -84,79 +86,62 @@ export default function RiderDashboard() {
   };
 
   const startLocationTracking = () => {
-    // Prevent asking for location multiple times
-    if (locationIntervalRef.current) return;
+    // Already tracking — don't start again
+    if (watchIdRef.current !== null || sendIntervalRef.current !== null) return;
 
     const defaultLoc = { lat: 25.7439, lng: 89.2752 };
 
-    const getLocation = () => {
-      // If we already know permission is denied, use default
-      if (locationAskedRef.current === 'denied') {
-        const loc = {
-          lat: defaultLoc.lat + (Math.random() - 0.5) * 0.002,
-          lng: defaultLoc.lng + (Math.random() - 0.5) * 0.002
-        };
-        setCurrentLocation(loc);
-        sendLocationUpdate(loc);
-        return;
-      }
+    if (navigator.geolocation) {
+      // watchPosition asks permission ONCE then streams updates silently — no repeated popups
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        ({ coords }) => {
+          const loc = { lat: coords.latitude, lng: coords.longitude };
+          lastLocRef.current = loc;
+          setCurrentLocation(loc);
+        },
+        () => {
+          // Permission denied — use default, never ask again
+          lastLocRef.current = defaultLoc;
+          setCurrentLocation(defaultLoc);
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 30000
+        }
+      );
+    } else {
+      // No geolocation support
+      lastLocRef.current = defaultLoc;
+      setCurrentLocation(defaultLoc);
+    }
 
-      if (!navigator.geolocation) {
-        // No GPS support — use default
-        setCurrentLocation(defaultLoc);
-        sendLocationUpdate(defaultLoc);
-        locationAskedRef.current = 'denied';
-        return;
-      }
+    // Send location to server every 10 seconds using lastLocRef
+    // This does NOT ask for permission — it just reads the already-stored location
+    sendIntervalRef.current = setInterval(() => {
+      const loc = lastLocRef.current || defaultLoc;
+      sendLocation(loc);
+    }, 10000);
 
-      // Only request permission once
-      if (!locationAskedRef.current) {
-        locationAskedRef.current = 'asking';
-        navigator.geolocation.getCurrentPosition(
-          ({ coords }) => {
-            locationAskedRef.current = 'granted';
-            const loc = { lat: coords.latitude, lng: coords.longitude };
-            setCurrentLocation(loc);
-            sendLocationUpdate(loc);
-          },
-          () => {
-            // Permission denied or error — use simulated location
-            locationAskedRef.current = 'denied';
-            setCurrentLocation(defaultLoc);
-            sendLocationUpdate(defaultLoc);
-          },
-          { timeout: 8000, enableHighAccuracy: false, maximumAge: 30000 }
-        );
-      } else if (locationAskedRef.current === 'granted') {
-        // Already granted — get position silently
-        navigator.geolocation.getCurrentPosition(
-          ({ coords }) => {
-            const loc = { lat: coords.latitude, lng: coords.longitude };
-            setCurrentLocation(loc);
-            sendLocationUpdate(loc);
-          },
-          () => {
-            // Silently use last known or default
-            const loc = currentLocation || defaultLoc;
-            sendLocationUpdate(loc);
-          },
-          { timeout: 5000, enableHighAccuracy: false, maximumAge: 15000 }
-        );
-      }
-    };
-
-    // Get location immediately once
-    getLocation();
-
-    // Then every 10 seconds — no more permission popups
-    locationIntervalRef.current = setInterval(getLocation, 10000);
+    // Send once immediately
+    setTimeout(() => {
+      const loc = lastLocRef.current || defaultLoc;
+      sendLocation(loc);
+    }, 1000);
   };
 
   const stopLocationTracking = () => {
-    if (locationIntervalRef.current) {
-      clearInterval(locationIntervalRef.current);
-      locationIntervalRef.current = null;
+    // Stop watching GPS
+    if (watchIdRef.current !== null) {
+      navigator.geolocation?.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
     }
+    // Stop sending interval
+    if (sendIntervalRef.current !== null) {
+      clearInterval(sendIntervalRef.current);
+      sendIntervalRef.current = null;
+    }
+    lastLocRef.current = null;
     setCurrentLocation(null);
   };
 
@@ -166,11 +151,10 @@ export default function RiderDashboard() {
       setIsOnline(res.data.isOnline);
       if (res.data.isOnline) {
         toast.success('You are now online! 🟢');
-        startLocationTracking(); // only called once here
+        startLocationTracking();
       } else {
         toast.success('You are now offline');
         stopLocationTracking();
-        locationAskedRef.current = false; // reset for next online session
       }
     } catch (_) {}
   };
