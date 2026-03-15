@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Allow: /restaurants
+Allow: /login
+Allow: /register
+
+Disallow: /admin
+Disallow: /restaurant
+Disallow: /rider
+Disallow: /checkout
+Disallow: /orders
+Disallow: /cart
+Disallow: /profile
+
+Sitemap: https://rmsr-food.vercel.app/sitemap.xml
