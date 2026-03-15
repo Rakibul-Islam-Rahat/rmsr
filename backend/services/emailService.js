@@ -2,16 +2,14 @@ const nodemailer = require('nodemailer');
 
 const sendEmail = async ({ to, subject, html, text }) => {
   try {
-    // Create fresh transporter every call
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
+      port: 465,
+      secure: true, // SSL on port 465
       auth: {
         user: 'md94rakibulislam@gmail.com',
         pass: 'xadfscqxnpbdryab'
-      },
-      tls: { rejectUnauthorized: false }
+      }
     });
 
     const info = await transporter.sendMail({
@@ -26,7 +24,6 @@ const sendEmail = async ({ to, subject, html, text }) => {
     return info;
   } catch (error) {
     console.error('Email error:', error.message);
-    // Never throw — email failure must not break main flow
   }
 };
 
