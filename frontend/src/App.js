@@ -18,6 +18,7 @@ import Loyalty from './pages/customer/Loyalty';
 // Auth pages
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
 
 // Restaurant owner pages
 import RestaurantDashboard from './pages/restaurant/Dashboard';
@@ -78,6 +79,7 @@ function AppRoutes() {
       {/* Public auth */}
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+      <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
 
       {/* Customer */}
       <Route path="/" element={<CustomerLayout><Home /></CustomerLayout>} />
