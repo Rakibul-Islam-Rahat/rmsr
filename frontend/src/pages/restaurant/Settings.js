@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getMyRestaurant, updateRestaurant } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { FiHome, FiList, FiGrid, FiSettings, FiBarChart2, FiLogOut, FiCamera } from 'react-icons/fi';
+import { FiHome, FiList, FiGrid, FiSettings, FiBarChart2, FiLogOut, FiCamera, FiTrash2, FiAlertTriangle } from 'react-icons/fi';
+import { deleteAccount } from '../../services/api';
 import toast from 'react-hot-toast';
 import '../admin/Dashboard.css';
 
@@ -22,6 +23,8 @@ export default function RestaurantSettings() {
   });
   const [logoPreview, setLogoPreview] = useState('');
   const [coverPreview, setCoverPreview] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { fetchRestaurant(); }, []);
 
@@ -98,6 +101,17 @@ export default function RestaurantSettings() {
   );
 
   if (loading) return <div className="dashboard-layout"><Sidebar /><main className="dashboard-main"><div className="page-loader"><div className="spinner" /></div></main></div>;
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      toast.success('Account deleted successfully');
+      logout();
+      navigate('/');
+    } catch (_) {}
+    finally { setDeleting(false); setShowDeleteConfirm(false); }
+  };
 
   return (
     <div className="dashboard-layout">
@@ -178,8 +192,38 @@ export default function RestaurantSettings() {
               {saving ? 'Saving...' : 'Save All Settings'}
             </button>
           </form>
+
+          {/* Delete Account */}
+          <div style={{ maxWidth: 700, marginTop: 8 }}>
+            <div className="delete-account-section">
+              <h4><FiAlertTriangle size={15} /> Delete Account</h4>
+              <p>
+                Permanently delete your account and deactivate your restaurant.
+                All your data will be removed. This <strong>cannot be undone</strong>.
+              </p>
+              <button className="btn-danger" onClick={() => setShowDeleteConfirm(true)}>
+                <FiTrash2 size={15} /> Delete My Account
+              </button>
+            </div>
+          </div>
         </div>
       </main>
+
+      {showDeleteConfirm && (
+        <div className="confirm-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="confirm-box" onClick={e => e.stopPropagation()}>
+            <div className="confirm-icon">🗑️</div>
+            <h3>Delete Account?</h3>
+            <p>Your restaurant will be deactivated and your account permanently deleted. This cannot be undone.</p>
+            <div className="confirm-actions">
+              <button className="btn btn-outline" onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
+              <button className="btn-danger" onClick={handleDeleteAccount} disabled={deleting}>
+                {deleting ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

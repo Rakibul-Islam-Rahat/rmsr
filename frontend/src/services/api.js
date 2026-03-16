@@ -108,3 +108,7 @@ export const updateRiderLocation = (data) => API.put('/rider/location', data);
 export const toggleRiderOnline = () => API.patch('/rider/toggle-online');
 
 export default API;
+
+// Delete own account
+export const deleteAccount = () => API.delete('/users/delete-account');
+export const adminDeleteUser = (id) => API.delete(`/admin/users/${id}`);

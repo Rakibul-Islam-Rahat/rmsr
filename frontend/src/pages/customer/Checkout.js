@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { createOrder, initiatePayment } from '../../services/api';
-import { FiMapPin, FiCreditCard, FiClock, FiTag } from 'react-icons/fi';
+import { createOrder } from '../../services/api';
+import { FiMapPin, FiCreditCard, FiClock, FiTag, FiCheckCircle, FiCopy } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import './Checkout.css';
 
@@ -13,6 +13,8 @@ const PAYMENT_METHODS = [
   { id: 'cash_on_delivery', label: 'Cash on Delivery', icon: '💵', color: '#27ae60', desc: 'Pay when delivered' },
 ];
 
+const PAYMENT_NUMBER = '01794558994'; // All mobile banking payments go to this number
+
 export default function Checkout() {
   const { cartItems, cartRestaurant, cartTotal, clearCart, user } = useAuth();
   const navigate = useNavigate();
@@ -22,6 +24,7 @@ export default function Checkout() {
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduledTime, setScheduledTime] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
+  const [transactionId, setTransactionId] = useState('');
   const [address, setAddress] = useState({
     street: user?.address?.street || '',
     area: user?.address?.area || '',
@@ -33,6 +36,13 @@ export default function Checkout() {
   const loyaltyDiscount = Math.floor(loyaltyPoints / 100) * 10;
   const total = Math.max(0, cartTotal + deliveryFee - loyaltyDiscount);
 
+  const isOnlinePayment = ['bkash', 'nagad', 'rocket'].includes(paymentMethod);
+
+  const copyNumber = () => {
+    navigator.clipboard.writeText(PAYMENT_NUMBER);
+    toast.success('Number copied!');
+  };
+
   const handlePlaceOrder = async () => {
     if (!address.street.trim() || !address.area.trim()) {
       return toast.error('Please fill in your delivery address');
@@ -40,8 +50,8 @@ export default function Checkout() {
     if (isScheduled && !scheduledTime) {
       return toast.error('Please select a scheduled time');
     }
-    if (loyaltyPoints > (user?.loyaltyPoints || 0)) {
-      return toast.error('Not enough loyalty points');
+    if (isOnlinePayment && !transactionId.trim()) {
+      return toast.error(`Please enter your ${paymentMethod} Transaction ID after sending payment`);
     }
 
     setLoading(true);
@@ -58,7 +68,8 @@ export default function Checkout() {
         specialInstructions: specialInstructions.trim(),
         isScheduled,
         scheduledTime: isScheduled ? scheduledTime : null,
-        loyaltyPointsToUse: loyaltyPoints
+        loyaltyPointsToUse: loyaltyPoints,
+        transactionId: transactionId.trim() || undefined
       };
 
       const res = await createOrder(orderData);
@@ -70,32 +81,17 @@ export default function Checkout() {
         return;
       }
 
-      if (paymentMethod === 'cash_on_delivery') {
-        clearCart();
+      clearCart();
+      setLoading(false);
+
+      if (isOnlinePayment) {
+        toast.success('Order placed! We will verify your payment shortly. 🎉');
+      } else {
         toast.success('Order placed successfully! 🎉');
-        setLoading(false);
-        navigate(`/orders/${order._id}`);
-        return;
       }
 
-      // Online payment
-      try {
-        const payRes = await initiatePayment({ orderId: order._id });
-        clearCart();
-        setLoading(false);
-        if (payRes.data?.gatewayUrl) {
-          window.location.href = payRes.data.gatewayUrl;
-        } else {
-          toast.error('Payment gateway unavailable. Please use Cash on Delivery.');
-          navigate(`/orders/${order._id}`);
-        }
-      } catch (payErr) {
-        setLoading(false);
-        toast.error('Payment gateway error. Your order was created. Please contact support or use Cash on Delivery next time.');
-        clearCart();
-        navigate(`/orders/${order._id}`);
-      }
-    } catch (err) {
+      navigate(`/orders/${order._id}`);
+    } catch (_) {
       setLoading(false);
     }
   };
@@ -110,6 +106,7 @@ export default function Checkout() {
       <h1 className="page-title">Checkout</h1>
       <div className="checkout-layout">
         <div className="checkout-left">
+
           {/* Delivery Address */}
           <div className="checkout-section card">
             <h3 className="section-heading"><FiMapPin /> Delivery Address</h3>
@@ -127,8 +124,9 @@ export default function Checkout() {
             </div>
             <div className="form-group">
               <label className="form-label">Special Instructions (optional)</label>
-              <textarea className="form-input" rows={3} placeholder="Any instructions for your order..."
-                value={specialInstructions} onChange={e => setSpecialInstructions(e.target.value)} style={{ resize: 'vertical' }} />
+              <textarea className="form-input" rows={3} placeholder="Any instructions..."
+                value={specialInstructions} onChange={e => setSpecialInstructions(e.target.value)}
+                style={{ resize: 'vertical' }} />
             </div>
           </div>
 
@@ -169,14 +167,14 @@ export default function Checkout() {
             </div>
           )}
 
-          {/* Payment */}
+          {/* Payment Method */}
           <div className="checkout-section card">
             <h3 className="section-heading"><FiCreditCard /> Payment Method</h3>
             <div className="payment-methods">
               {PAYMENT_METHODS.map(method => (
                 <button key={method.id}
                   className={`payment-option ${paymentMethod === method.id ? 'active' : ''}`}
-                  onClick={() => setPaymentMethod(method.id)}
+                  onClick={() => { setPaymentMethod(method.id); setTransactionId(''); }}
                   style={{ '--method-color': method.color }}
                 >
                   <span className="payment-icon">{method.icon}</span>
@@ -188,10 +186,78 @@ export default function Checkout() {
                 </button>
               ))}
             </div>
+
+            {/* Manual payment instructions */}
+            {isOnlinePayment && (
+              <div style={{
+                background: '#f0fff4',
+                border: '1px solid #9ae6b4',
+                borderLeft: '4px solid #27ae60',
+                borderRadius: 10,
+                padding: '18px 20px',
+                marginTop: 16
+              }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#276749', marginBottom: 10 }}>
+                  📱 {paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)} Payment Instructions
+                </div>
+
+                <p style={{ fontSize: 14, color: '#555', marginBottom: 8 }}>
+                  Send <strong style={{ color: '#c0392b', fontSize: 16 }}>৳{total.toFixed(0)}</strong> to this {paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)} number:
+                </p>
+
+                {/* Payment number with copy button */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  background: '#fff',
+                  border: '2px solid #27ae60',
+                  borderRadius: 8,
+                  padding: '10px 16px',
+                  marginBottom: 12
+                }}>
+                  <span style={{ fontSize: 22, fontWeight: 800, color: '#276749', letterSpacing: 2, flex: 1 }}>
+                    {PAYMENT_NUMBER}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={copyNumber}
+                    style={{ background: '#27ae60', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                  >
+                    <FiCopy size={12} /> Copy
+                  </button>
+                </div>
+
+                <p style={{ fontSize: 13, color: '#666', marginBottom: 12, lineHeight: 1.6 }}>
+                  ✅ Send as <strong>Send Money</strong><br />
+                  ✅ Use reference: <strong>RMSR-{user?.name?.split(' ')[0]?.toUpperCase()}</strong><br />
+                  ✅ After sending, enter your Transaction ID below
+                </p>
+
+                {/* Transaction ID input */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ color: '#276749', fontWeight: 700 }}>
+                    Transaction ID (TxnID) *
+                  </label>
+                  <input
+                    className="form-input"
+                    placeholder={`Enter your ${paymentMethod} Transaction ID`}
+                    value={transactionId}
+                    onChange={e => setTransactionId(e.target.value)}
+                    style={{ borderColor: transactionId ? '#27ae60' : undefined }}
+                  />
+                  {transactionId && (
+                    <p style={{ fontSize: 12, color: '#27ae60', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <FiCheckCircle size={12} /> Transaction ID saved
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Summary */}
+        {/* Order Summary */}
         <div className="checkout-right">
           <div className="order-summary-card card">
             <h3>Order Summary</h3>
@@ -215,12 +281,25 @@ export default function Checkout() {
             <div className="loyalty-earn-note">
               🏆 You'll earn {Math.floor(total / 10)} loyalty points for this order
             </div>
-            <button className="btn btn-primary w-full btn-lg" onClick={handlePlaceOrder}
-              disabled={loading} style={{ marginTop: 16 }}>
+
+            {isOnlinePayment && !transactionId && (
+              <div style={{ background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 8, padding: '10px 14px', marginTop: 12, fontSize: 13, color: '#f57f17', fontWeight: 600 }}>
+                ⚠️ Please send payment and enter Transaction ID above before placing order
+              </div>
+            )}
+
+            <button
+              className="btn btn-primary w-full btn-lg"
+              onClick={handlePlaceOrder}
+              disabled={loading || (isOnlinePayment && !transactionId.trim())}
+              style={{ marginTop: 16 }}
+            >
               {loading ? 'Placing order...' :
                 paymentMethod === 'cash_on_delivery'
                   ? `Place Order — ৳${total.toFixed(0)}`
-                  : `Pay ৳${total.toFixed(0)} via ${PAYMENT_METHODS.find(m => m.id === paymentMethod)?.label}`
+                  : transactionId
+                    ? `Confirm Order — ৳${total.toFixed(0)}`
+                    : `Enter Transaction ID First`
               }
             </button>
           </div>

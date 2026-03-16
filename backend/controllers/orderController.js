@@ -86,6 +86,7 @@ const createOrder = async (req, res) => {
       loyaltyPointsUsed,
       loyaltyPointsEarned,
       total,
+      transactionId: req.body.transactionId || '',
       statusHistory: [{ status: 'pending', note: 'Order placed' }]
     });
 

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getRiderOrders, getAvailableOrders, acceptRiderOrder, updateRiderLocation, toggleRiderOnline, updateOrderStatus } from '../../services/api';
+import { getRiderOrders, getAvailableOrders, acceptRiderOrder, updateRiderLocation, toggleRiderOnline, updateOrderStatus, updateProfile } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { io } from 'socket.io-client';
-import { FiMapPin, FiPhone, FiPackage, FiLogOut, FiNavigation, FiWifi, FiMessageSquare } from 'react-icons/fi';
+import { FiMapPin, FiPhone, FiPackage, FiLogOut, FiNavigation, FiWifi, FiMessageSquare, FiTrash2, FiAlertTriangle, FiSettings, FiCamera } from 'react-icons/fi';
+import { deleteAccount } from '../../services/api';
 import ChatPanel from '../../components/common/ChatPanel';
 import ChatNotification from '../../components/common/ChatNotification';
 import toast from 'react-hot-toast';
@@ -21,12 +22,16 @@ export default function RiderDashboard() {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [activeChatOrder, setActiveChatOrder] = useState(null);
   const [unreadChats, setUnreadChats] = useState({});
-
   const socketRef = useRef(null);
-  const watchIdRef = useRef(null);       // watchPosition ID — stops popup loop
-  const sendIntervalRef = useRef(null);  // sends location every 10s
-  const lastLocRef = useRef(null);       // stores last known location
+  const locationIntervalRef = useRef(null);
+  const locationAskedRef = useRef(false); // prevent repeated permission asks
   const activeOrderRef = useRef(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef(null);
 
   useEffect(() => {
     fetchOrders();
@@ -72,7 +77,7 @@ export default function RiderDashboard() {
     finally { setLoading(false); }
   };
 
-  const sendLocation = async (loc) => {
+  const sendLocationUpdate = async (loc) => {
     try {
       await updateRiderLocation(loc);
       if (socketRef.current && activeOrderRef.current) {
@@ -86,62 +91,79 @@ export default function RiderDashboard() {
   };
 
   const startLocationTracking = () => {
-    // Already tracking — don't start again
-    if (watchIdRef.current !== null || sendIntervalRef.current !== null) return;
+    // Prevent asking for location multiple times
+    if (locationIntervalRef.current) return;
 
     const defaultLoc = { lat: 25.7439, lng: 89.2752 };
 
-    if (navigator.geolocation) {
-      // watchPosition asks permission ONCE then streams updates silently — no repeated popups
-      watchIdRef.current = navigator.geolocation.watchPosition(
-        ({ coords }) => {
-          const loc = { lat: coords.latitude, lng: coords.longitude };
-          lastLocRef.current = loc;
-          setCurrentLocation(loc);
-        },
-        () => {
-          // Permission denied — use default, never ask again
-          lastLocRef.current = defaultLoc;
-          setCurrentLocation(defaultLoc);
-        },
-        {
-          enableHighAccuracy: false,
-          timeout: 10000,
-          maximumAge: 30000
-        }
-      );
-    } else {
-      // No geolocation support
-      lastLocRef.current = defaultLoc;
-      setCurrentLocation(defaultLoc);
-    }
+    const getLocation = () => {
+      // If we already know permission is denied, use default
+      if (locationAskedRef.current === 'denied') {
+        const loc = {
+          lat: defaultLoc.lat + (Math.random() - 0.5) * 0.002,
+          lng: defaultLoc.lng + (Math.random() - 0.5) * 0.002
+        };
+        setCurrentLocation(loc);
+        sendLocationUpdate(loc);
+        return;
+      }
 
-    // Send location to server every 10 seconds using lastLocRef
-    // This does NOT ask for permission — it just reads the already-stored location
-    sendIntervalRef.current = setInterval(() => {
-      const loc = lastLocRef.current || defaultLoc;
-      sendLocation(loc);
-    }, 10000);
+      if (!navigator.geolocation) {
+        // No GPS support — use default
+        setCurrentLocation(defaultLoc);
+        sendLocationUpdate(defaultLoc);
+        locationAskedRef.current = 'denied';
+        return;
+      }
 
-    // Send once immediately
-    setTimeout(() => {
-      const loc = lastLocRef.current || defaultLoc;
-      sendLocation(loc);
-    }, 1000);
+      // Only request permission once
+      if (!locationAskedRef.current) {
+        locationAskedRef.current = 'asking';
+        navigator.geolocation.getCurrentPosition(
+          ({ coords }) => {
+            locationAskedRef.current = 'granted';
+            const loc = { lat: coords.latitude, lng: coords.longitude };
+            setCurrentLocation(loc);
+            sendLocationUpdate(loc);
+          },
+          () => {
+            // Permission denied or error — use simulated location
+            locationAskedRef.current = 'denied';
+            setCurrentLocation(defaultLoc);
+            sendLocationUpdate(defaultLoc);
+          },
+          { timeout: 8000, enableHighAccuracy: false, maximumAge: 30000 }
+        );
+      } else if (locationAskedRef.current === 'granted') {
+        // Already granted — get position silently
+        navigator.geolocation.getCurrentPosition(
+          ({ coords }) => {
+            const loc = { lat: coords.latitude, lng: coords.longitude };
+            setCurrentLocation(loc);
+            sendLocationUpdate(loc);
+          },
+          () => {
+            // Silently use last known or default
+            const loc = currentLocation || defaultLoc;
+            sendLocationUpdate(loc);
+          },
+          { timeout: 5000, enableHighAccuracy: false, maximumAge: 15000 }
+        );
+      }
+    };
+
+    // Get location immediately once
+    getLocation();
+
+    // Then every 10 seconds — no more permission popups
+    locationIntervalRef.current = setInterval(getLocation, 10000);
   };
 
   const stopLocationTracking = () => {
-    // Stop watching GPS
-    if (watchIdRef.current !== null) {
-      navigator.geolocation?.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
+    if (locationIntervalRef.current) {
+      clearInterval(locationIntervalRef.current);
+      locationIntervalRef.current = null;
     }
-    // Stop sending interval
-    if (sendIntervalRef.current !== null) {
-      clearInterval(sendIntervalRef.current);
-      sendIntervalRef.current = null;
-    }
-    lastLocRef.current = null;
     setCurrentLocation(null);
   };
 
@@ -151,10 +173,11 @@ export default function RiderDashboard() {
       setIsOnline(res.data.isOnline);
       if (res.data.isOnline) {
         toast.success('You are now online! 🟢');
-        startLocationTracking();
+        startLocationTracking(); // only called once here
       } else {
         toast.success('You are now offline');
         stopLocationTracking();
+        locationAskedRef.current = false; // reset for next online session
       }
     } catch (_) {}
   };
@@ -192,6 +215,38 @@ export default function RiderDashboard() {
     if (order && (!activeChatOrder || String(activeChatOrder._id) !== orderId)) {
       setActiveChatOrder(order);
     }
+  };
+
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const allowed = ['image/jpeg','image/jpg','image/png','image/webp','image/gif'];
+    if (!allowed.includes(file.type)) return toast.error('Only JPG, PNG, WEBP, GIF allowed');
+    if (file.size > 5 * 1024 * 1024) return toast.error('Image must be under 5MB');
+    const reader = new FileReader();
+    reader.onload = (ev) => setAvatarPreview(ev.target.result);
+    reader.readAsDataURL(file);
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      await updateProfile(formData);
+      toast.success('Profile photo updated! 📸');
+    } catch (_) {
+      setAvatarPreview('');
+    } finally { setUploadingPhoto(false); }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      stopLocationTracking();
+      toast.success('Account deleted successfully');
+      logout();
+      navigate('/');
+    } catch (_) {}
+    finally { setDeleting(false); setShowDeleteConfirm(false); }
   };
 
   const activeOrderIds = myOrders.map(o => String(o._id));
@@ -234,6 +289,13 @@ export default function RiderDashboard() {
               </span>
             )}
           </div>
+          <div
+            className={`sidebar-link ${showSettings ? 'active' : ''}`}
+            onClick={() => setShowSettings(!showSettings)}
+            style={{ cursor: 'pointer' }}
+          >
+            <FiSettings /> Settings
+          </div>
         </nav>
 
         {currentLocation && (
@@ -249,12 +311,29 @@ export default function RiderDashboard() {
 
         <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700 }}>
-              {user?.name?.charAt(0)?.toUpperCase()}
+            {/* Clickable avatar */}
+            <div
+              style={{ position: 'relative', width: 40, height: 40, flexShrink: 0, cursor: 'pointer' }}
+              onClick={() => photoInputRef.current?.click()}
+              title="Change photo"
+            >
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, overflow: 'hidden' }}>
+                {avatarPreview || user?.avatar
+                  ? <img src={avatarPreview || user?.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : user?.name?.charAt(0)?.toUpperCase()
+                }
+              </div>
+              <div style={{ position: 'absolute', bottom: -2, right: -2, background: '#27ae60', borderRadius: '50%', width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--dark)' }}>
+                <FiCamera size={8} color="#fff" />
+              </div>
             </div>
+            <input ref={photoInputRef} type="file" accept="image/jpg,image/jpeg,image/png,image/webp,image/gif"
+              style={{ display: 'none' }} onChange={handlePhotoChange} />
             <div>
               <div style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>{user?.name}</div>
-              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>Rider</div>
+              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>
+                {uploadingPhoto ? 'Uploading...' : 'Tap photo to change'}
+              </div>
             </div>
           </div>
         </div>
@@ -422,6 +501,41 @@ export default function RiderDashboard() {
           </div>
         )}
       </main>
+      {showSettings && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setShowSettings(false)}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 28, maxWidth: 400, width: '100%' }}
+            onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginBottom: 20, fontSize: 18 }}>Account Settings</h3>
+            <div className="delete-account-section">
+              <h4><FiAlertTriangle size={15} /> Delete Account</h4>
+              <p>Permanently delete your rider account. All your delivery history will be removed. This cannot be undone.</p>
+              <button className="btn-danger" onClick={() => { setShowSettings(false); setShowDeleteConfirm(true); }}>
+                <FiTrash2 size={15} /> Delete My Account
+              </button>
+            </div>
+            <button className="btn btn-outline" style={{ marginTop: 16, width: '100%' }} onClick={() => setShowSettings(false)}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="confirm-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="confirm-box" onClick={e => e.stopPropagation()}>
+            <div className="confirm-icon">🗑️</div>
+            <h3>Delete Account?</h3>
+            <p>Your rider account will be permanently deleted. This cannot be undone.</p>
+            <div className="confirm-actions">
+              <button className="btn btn-outline" onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
+              <button className="btn-danger" onClick={handleDeleteAccount} disabled={deleting}>
+                {deleting ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

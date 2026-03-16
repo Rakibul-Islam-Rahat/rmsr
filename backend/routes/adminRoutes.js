@@ -58,3 +58,38 @@ router.get('/orders', async (req, res) => {
 });
 
 module.exports = router;
+
+// Admin delete any user account (except other admins)
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const Order = require('../models/Order');
+    const Restaurant = require('../models/Restaurant');
+    const { Loyalty, Rider } = require('../models/index');
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (user.role === 'admin') return res.status(403).json({ success: false, message: 'Cannot delete admin accounts' });
+
+    // Check active orders
+    const activeOrders = await Order.countDocuments({
+      $or: [{ customer: user._id }, { rider: user._id }],
+      status: { $in: ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'picked_up', 'on_the_way'] }
+    });
+    if (activeOrders > 0) {
+      return res.status(400).json({ success: false, message: `User has ${activeOrders} active order(s). Cannot delete now.` });
+    }
+
+    // Clean up related data
+    await Loyalty.deleteMany({ user: user._id });
+    await Rider.deleteMany({ user: user._id });
+    if (user.role === 'restaurant_owner') {
+      await Restaurant.updateMany({ owner: user._id }, { isActive: false, isApproved: false });
+    }
+
+    await User.findByIdAndDelete(user._id);
+    res.json({ success: true, message: `Account of ${user.name} deleted successfully` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
