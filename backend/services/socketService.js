@@ -20,6 +20,11 @@ const socketService = (io) => {
       if (userId) socket.join(`user_${userId}`);
     });
 
+    // Join admin room (for payment_pending notifications)
+    socket.on('join_admin', () => {
+      socket.join('admin_room');
+    });
+
     // Rider broadcasts location — relay to order room
     socket.on('rider_location_update', ({ orderId, lat, lng }) => {
       if (orderId && lat && lng) {

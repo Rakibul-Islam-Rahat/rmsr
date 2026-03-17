@@ -63,7 +63,11 @@ export default function RestaurantDashboard() {
 
   const Sidebar = () => (
     <aside className="dashboard-sidebar">
-      <div className="sidebar-logo"><div className="sidebar-logo-icon">R</div><div><div className="sidebar-brand">Restaurant</div><div className="sidebar-sub">Portal</div></div></div>
+      <Link to="/" className="sidebar-rmsr-home">RMSR Home</Link>
+      <div className="sidebar-logo">
+        <div className="sidebar-logo-icon">R</div>
+        <div><div className="sidebar-brand">Restaurant</div><div className="sidebar-sub">Portal</div></div>
+      </div>
       <nav className="sidebar-nav">
         <Link to="/restaurant" className="sidebar-link active"><FiHome />Dashboard</Link>
         <Link to="/restaurant/orders" className="sidebar-link"><FiList />Orders</Link>
@@ -75,28 +79,39 @@ export default function RestaurantDashboard() {
     </aside>
   );
 
-  if (loading) return <div className="dashboard-layout"><Sidebar /><main className="dashboard-main"><div className="page-loader"><div className="spinner" /></div></main></div>;
+  if (loading) return (
+    <div className="dashboard-layout">
+      <Sidebar />
+      <main className="dashboard-main">
+        <div className="page-loader"><div className="spinner" /></div>
+      </main>
+    </div>
+  );
 
   if (noRestaurant) return (
     <div className="dashboard-layout">
       <Sidebar />
       <main className="dashboard-main">
-        <div className="dashboard-topbar"><h1 className="dashboard-title">Create Your Restaurant</h1></div>
+        <div className="dashboard-topbar">
+          <h1 className="dashboard-title">Setup Your Restaurant</h1>
+        </div>
         <div className="dashboard-content">
-          <div className="card" style={{ padding: 28, maxWidth: 600 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, color: 'var(--secondary)' }}>
-              <FiAlertCircle size={20} />
-              <span style={{ fontSize: 14 }}>Your restaurant will be reviewed by admin before going live.</span>
-            </div>
+          <div className="card" style={{ maxWidth: 600, padding: 28 }}>
+            <h2 style={{ marginBottom: 8, fontSize: 18 }}>Register Your Restaurant</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: 24, fontSize: 14 }}>Fill in your restaurant details. After submission, our admin will review and approve your listing.</p>
             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div className="form-group"><label className="form-label">Restaurant Name *</label><input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-              <div className="form-group"><label className="form-label">Phone *</label><input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
-              <div className="form-group"><label className="form-label">Cuisine (comma separated)</label><input className="form-input" placeholder="e.g. Biriyani, Burger, Chicken" value={form.cuisine} onChange={e => setForm({ ...form, cuisine: e.target.value })} /></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="form-group"><label className="form-label">Restaurant Name *</label><input className="form-input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required /></div>
+                <div className="form-group"><label className="form-label">Phone *</label><input className="form-input" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} required /></div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="form-group"><label className="form-label">Street / House *</label><input className="form-input" value={form.street} onChange={e => setForm({ ...form, street: e.target.value })} required /></div>
+                <div className="form-group"><label className="form-label">Area / Thana *</label><input className="form-input" value={form.area} onChange={e => setForm({ ...form, area: e.target.value })} required /></div>
+              </div>
+              <div className="form-group"><label className="form-label">Cuisine Types</label><input className="form-input" placeholder="e.g. Biriyani, Burger" value={form.cuisine} onChange={e => setForm({ ...form, cuisine: e.target.value })} /></div>
               <div className="form-group"><label className="form-label">Description</label><textarea className="form-input" rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                <div className="form-group"><label className="form-label">Street *</label><input className="form-input" value={form.street} onChange={e => setForm({ ...form, street: e.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Area *</label><input className="form-input" value={form.area} onChange={e => setForm({ ...form, area: e.target.value })} /></div>
-                <div className="form-group"><label className="form-label">Min. Order (৳)</label><input type="number" className="form-input" value={form.minimumOrder} onChange={e => setForm({ ...form, minimumOrder: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">Minimum Order (৳)</label><input type="number" className="form-input" value={form.minimumOrder} onChange={e => setForm({ ...form, minimumOrder: e.target.value })} /></div>
                 <div className="form-group"><label className="form-label">Delivery Fee (৳)</label><input type="number" className="form-input" value={form.deliveryFee} onChange={e => setForm({ ...form, deliveryFee: e.target.value })} /></div>
               </div>
               <button type="submit" className="btn btn-primary btn-lg" disabled={creating}>{creating ? 'Submitting...' : 'Submit for Approval'}</button>
@@ -128,7 +143,9 @@ export default function RestaurantDashboard() {
         </div>
         <div className="dashboard-section">
           <h2 className="section-title-sm">Recent Orders</h2>
-          {orders.length === 0 ? <div className="empty-state"><p>No orders yet</p></div> : (
+          {orders.length === 0 ? (
+            <div className="empty-state"><p>No orders yet</p></div>
+          ) : (
             <div className="card">
               <table className="data-table">
                 <thead><tr><th>Order #</th><th>Customer</th><th>Total</th><th>Status</th></tr></thead>

@@ -82,6 +82,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   const addToCart = (item, restaurant) => {
+    // Only customers can order food
+    if (user && user.role !== 'customer') {
+      const msgs = {
+        restaurant_owner: 'Restaurant owners cannot place orders. Please use a customer account.',
+        rider: 'Riders cannot place orders. Please use a customer account.',
+        admin: 'Admin accounts cannot place orders. Please use a customer account.',
+      };
+      toast.error(msgs[user.role] || 'This account cannot place orders. Please use a customer account.');
+      return false;
+    }
     if (cartRestaurant && cartRestaurant._id !== restaurant._id) {
       toast.error('Clear your cart first to order from a different restaurant');
       return false;

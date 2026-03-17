@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getChatMessages, sendChatMessage } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { io } from 'socket.io-client';
@@ -12,55 +12,123 @@ export default function ChatPanel({ orderId, orderNumber, onClose }) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const socketRef = useRef(null);
-  const messagesEndRef = useRef(null);
+  const containerRef = useRef(null);   // scroll container
   const inputRef = useRef(null);
+  // seenIds: _ids we've already added — prevents duplicates from socket echo
+  const seenIdsRef = useRef(new Set());
+  // pendingTexts: texts being sent by ME — socket echo of own msg is skipped
+  // keyed by tempId, value is the message text
+  const pendingRef = useRef(new Map());
+
+  const scrollBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      const c = containerRef.current;
+      if (c) c.scrollTop = c.scrollHeight;
+    });
+  }, []);
 
   useEffect(() => {
     if (!orderId) return;
+    seenIdsRef.current.clear();
+    pendingRef.current.clear();
     fetchMessages();
     setupSocket();
-    return () => { if (socketRef.current) socketRef.current.disconnect(); };
+    return () => {
+      if (socketRef.current) { socketRef.current.disconnect(); socketRef.current = null; }
+    };
   }, [orderId]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  useEffect(() => { scrollBottom(); }, [messages, scrollBottom]);
 
   const setupSocket = () => {
-    const socket = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000', {
-      transports: ['websocket', 'polling']
+    const s = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000', {
+      transports: ['websocket', 'polling'], reconnection: true,
     });
-    socketRef.current = socket;
-    socket.on('connect', () => socket.emit('join_chat', orderId));
-    socket.on('new_message', (msg) => {
-      setMessages(prev => {
-        // avoid duplicates
-        if (prev.find(m => m._id === msg._id)) return prev;
-        return [...prev, msg];
-      });
+    socketRef.current = s;
+
+    const join = () => s.emit('join_chat', orderId);
+    if (s.connected) join(); else s.on('connect', join);
+    s.on('reconnect', join);
+
+    s.on('new_message', (msg) => {
+      const msgId = String(msg?._id || '');
+      // 1. Skip if already seen by _id
+      if (msgId && seenIdsRef.current.has(msgId)) return;
+
+      // 2. If sender is ME — check pending. This handles the race condition where
+      //    socket fires BEFORE the API response updates seenIds with the real _id
+      const isFromMe = String(msg.sender?._id) === String(user?._id);
+      if (isFromMe) {
+        // Find a pending send with matching text and replace the optimistic
+        for (const [tempId, text] of pendingRef.current.entries()) {
+          if (text === msg.message) {
+            // Mark real id as seen, remove pending entry
+            if (msgId) seenIdsRef.current.add(msgId);
+            pendingRef.current.delete(tempId);
+            // Replace the optimistic bubble with the real confirmed message
+            setMessages(prev => prev.map(m => m._id === tempId ? msg : m));
+            return;
+          }
+        }
+        // No matching pending — skip to avoid duplicate
+        if (msgId) seenIdsRef.current.add(msgId);
+        return;
+      }
+
+      // 3. Message from someone else — add normally
+      if (msgId) seenIdsRef.current.add(msgId);
+      setMessages(prev => [...prev, msg]);
     });
-    socket.on('reconnect', () => socket.emit('join_chat', orderId));
   };
 
   const fetchMessages = async () => {
     setLoading(true);
     try {
       const res = await getChatMessages(orderId);
-      setMessages(res.data.messages || []);
+      const msgs = res.data.messages || [];
+      msgs.forEach(m => { if (m._id) seenIdsRef.current.add(m._id); });
+      setMessages(msgs);
     } catch (_) {}
-    finally { setLoading(false); }
+    finally {
+      setLoading(false);
+      setTimeout(() => { scrollBottom(); inputRef.current?.focus(); }, 50);
+    }
   };
 
   const handleSend = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     const text = newMessage.trim();
     if (!text || sending) return;
     setSending(true);
     setNewMessage('');
+
+    const tempId = `temp_${Date.now()}_${Math.random()}`;
+    const optimistic = {
+      _id: tempId, message: text,
+      sender: { _id: user?._id, name: user?.name },
+      senderRole: user?.role,
+      createdAt: new Date().toISOString(),
+      _optimistic: true,
+    };
+
+    // Register in pending so socket echo of this text is intercepted
+    pendingRef.current.set(tempId, text);
+    seenIdsRef.current.add(tempId);
+    setMessages(prev => [...prev, optimistic]);
+
     try {
-      await sendChatMessage({ orderId, message: text });
+      const res = await sendChatMessage({ orderId, message: text });
+      const real = res.data.message;
+      if (real?._id) seenIdsRef.current.add(real._id);
+      // Remove from pending (socket might not have fired yet)
+      pendingRef.current.delete(tempId);
+      // Replace optimistic with confirmed real message
+      setMessages(prev => prev.map(m => m._id === tempId ? real : m));
     } catch (_) {
-      setNewMessage(text); // restore on error
+      pendingRef.current.delete(tempId);
+      seenIdsRef.current.delete(tempId);
+      setMessages(prev => prev.filter(m => m._id !== tempId));
+      setNewMessage(text);
     } finally {
       setSending(false);
       inputRef.current?.focus();
@@ -68,16 +136,10 @@ export default function ChatPanel({ orderId, orderNumber, onClose }) {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend(e);
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e); }
   };
 
-  const formatTime = (date) => {
-    if (!date) return '';
-    return new Date(date).toLocaleTimeString('en-BD', { hour: '2-digit', minute: '2-digit' });
-  };
+  const fmt = (d) => d ? new Date(d).toLocaleTimeString('en-BD', { hour: '2-digit', minute: '2-digit' }) : '';
 
   return (
     <div className="chat-panel">
@@ -87,13 +149,13 @@ export default function ChatPanel({ orderId, orderNumber, onClose }) {
           <span>Chat — Order #{orderNumber}</span>
         </div>
         {onClose && (
-          <button className="chat-panel-close" onClick={onClose} title="Close chat">
+          <button className="chat-panel-close" onClick={onClose} title="Close">
             <FiX size={18} />
           </button>
         )}
       </div>
 
-      <div className="chat-panel-messages">
+      <div className="chat-panel-messages" ref={containerRef}>
         {loading && <div className="chat-status-msg">Loading messages...</div>}
         {!loading && messages.length === 0 && (
           <div className="chat-status-msg">
@@ -104,21 +166,18 @@ export default function ChatPanel({ orderId, orderNumber, onClose }) {
         {messages.map((msg, i) => {
           const isMine = String(msg.sender?._id) === String(user?._id);
           return (
-            <div key={msg._id || i} className={`chat-bubble ${isMine ? 'mine' : 'theirs'}`}>
+            <div key={msg._id || i} className={`chat-bubble ${isMine ? 'mine' : 'theirs'} ${msg._optimistic ? 'optimistic' : ''}`}>
               {!isMine && (
                 <div className="chat-sender-name">
                   {msg.sender?.name}
-                  {msg.senderRole && (
-                    <span className="sender-role"> ({msg.senderRole.replace('_', ' ')})</span>
-                  )}
+                  {msg.senderRole && <span className="sender-role"> ({msg.senderRole.replace('_', ' ')})</span>}
                 </div>
               )}
               <div className="bubble-text">{msg.message}</div>
-              <div className="bubble-time">{formatTime(msg.createdAt)}</div>
+              <div className="bubble-time">{msg._optimistic ? '···' : fmt(msg.createdAt)}</div>
             </div>
           );
         })}
-        <div ref={messagesEndRef} />
       </div>
 
       <form className="chat-panel-input" onSubmit={handleSend}>

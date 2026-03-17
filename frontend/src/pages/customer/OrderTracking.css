@@ -37,7 +37,16 @@
 .order-detail-item.green { color: var(--accent); }
 .payment-info { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; font-size: 13px; color: var(--text-muted); }
 .chat-tab { display: flex; flex-direction: column; height: 460px; background: var(--bg-primary); border-radius: var(--radius-md); border: 1px solid var(--border); overflow: hidden; }
-.chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+.chat-messages {
+  flex: 1;
+  overflow-y: scroll;   /* always show scrollbar — prevents layout shift */
+  overflow-x: hidden;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scroll-behavior: auto;  /* instant scroll, not smooth — smooth can stop at middle */
+}
 .chat-empty { color: var(--text-muted); font-size: 14px; text-align: center; margin-top: 40px; }
 .chat-bubble { max-width: 70%; }
 .chat-bubble.mine { align-self: flex-end; }

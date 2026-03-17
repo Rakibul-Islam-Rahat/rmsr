@@ -1,4 +1,4 @@
-.restaurants-page { padding: 40px 0 60px; }
+.restaurants-page { padding: 100px 0 60px; }
 .restaurants-header { margin-bottom: 24px; }
 .restaurants-header h1 { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
 .restaurants-header p { color: var(--text-muted); font-size: 15px; }
@@ -13,3 +13,57 @@
 .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 40px; }
 .page-btn { width: 40px; height: 40px; border-radius: 10px; border: 2px solid var(--border); background: var(--bg-primary); font-size: 14px; font-weight: 600; cursor: pointer; transition: var(--transition); font-family: var(--font-body); }
 .page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ─── Search with autocomplete ────────────────────────── */
+.search-clear {
+  position: absolute;
+  right: 90px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #aaa;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+.search-clear:hover { color: #c0392b; }
+
+.restaurants-autocomplete {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  z-index: 100;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.autocomplete-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:hover { background: var(--bg-secondary); }
+.autocomplete-item.loading { color: var(--text-muted); font-style: italic; cursor: default; }
+.autocomplete-icon { font-size: 20px; flex-shrink: 0; width: 28px; text-align: center; }
+.autocomplete-text { flex: 1; min-width: 0; }
+.autocomplete-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.autocomplete-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+.autocomplete-type {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  color: var(--primary); background: rgba(192,57,43,0.08);
+  padding: 2px 7px; border-radius: 10px; flex-shrink: 0;
+}
+.autocomplete-all {
+  background: var(--bg-secondary); color: var(--text-secondary);
+  font-size: 12px; gap: 8px;
+}
+.autocomplete-all:hover { background: var(--bg-tertiary); }

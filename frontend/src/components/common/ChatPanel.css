@@ -44,7 +44,9 @@
 
 .chat-panel-messages {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  scroll-behavior: auto;
   padding: 14px;
   display: flex;
   flex-direction: column;
@@ -125,3 +127,7 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Optimistic message — slightly faded while sending */
+.chat-bubble.optimistic { opacity: 0.65; }
+.chat-bubble.optimistic .bubble-time { font-style: italic; }

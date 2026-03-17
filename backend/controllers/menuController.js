@@ -115,8 +115,16 @@ const deleteMenuItem = async (req, res) => {
 
 const toggleAvailability = async (req, res) => {
   try {
-    const item = await MenuItem.findById(req.params.id);
+    const item = await MenuItem.findById(req.params.id).populate('restaurant');
     if (!item) return res.status(404).json({ success: false, message: 'Item not found' });
+
+    // Verify ownership
+    if (req.user.role !== 'admin') {
+      const restaurant = await Restaurant.findOne({ owner: req.user._id });
+      if (!restaurant || restaurant._id.toString() !== item.restaurant._id.toString()) {
+        return res.status(403).json({ success: false, message: 'Not authorized to update this item' });
+      }
+    }
 
     item.isAvailable = !item.isAvailable;
     await item.save();

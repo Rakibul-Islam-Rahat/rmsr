@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { FiUser, FiMail, FiLock, FiPhone, FiEye, FiEyeOff } from 'react-icons/fi';
@@ -11,6 +11,21 @@ export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirmPassword: '', role: 'customer' });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const cardRef = useRef(null);
+
+  // Close on outside click
+  const handleOverlayClick = (e) => {
+    if (cardRef.current && !cardRef.current.contains(e.target)) {
+      navigate(-1);
+    }
+  };
+
+  // Close on ESC
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') navigate(-1); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,14 +44,14 @@ export default function Register() {
       });
       if (user.role === 'restaurant_owner') navigate('/restaurant');
       else if (user.role === 'rider') navigate('/rider');
-      else navigate('/');
+      else navigate('/orders'); // customer → straight to dashboard
     } catch {}
     finally { setLoading(false); }
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card auth-card-wide">
+    <div className="auth-page" onClick={handleOverlayClick}>
+      <div className="auth-card auth-card-wide" ref={cardRef}>
         <div className="auth-logo">
           <div className="auth-logo-icon">R</div>
           <span>RMSR Food</span>

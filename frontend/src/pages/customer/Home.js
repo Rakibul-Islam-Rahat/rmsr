@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getRestaurants, getFeaturedRestaurants, getRecommendations } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { FiSearch, FiStar, FiClock, FiTruck, FiAward, FiZap } from 'react-icons/fi';
+import { FiStar, FiClock, FiTruck, FiZap, FiArrowRight } from 'react-icons/fi';
 import RestaurantCard from '../../components/customer/RestaurantCard';
 import './Home.css';
 
@@ -20,11 +20,13 @@ const CATEGORIES = [
 export default function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
+
   const [featured, setFeatured] = useState([]);
   const [popular, setPopular] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
+
+
 
   useEffect(() => {
     fetchData();
@@ -38,7 +40,6 @@ export default function Home() {
       ]);
       setFeatured(featuredRes.data.restaurants);
       setPopular(popularRes.data.restaurants);
-
       if (user?.role === 'customer') {
         try {
           const recRes = await getRecommendations();
@@ -49,10 +50,7 @@ export default function Home() {
     finally { setLoading(false); }
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (search.trim()) navigate(`/restaurants?search=${encodeURIComponent(search)}`);
-  };
+
 
   return (
     <div className="home-page">
@@ -71,31 +69,26 @@ export default function Home() {
             <p className="hero-subtitle">
               Order from the best restaurants in Rangpur. Fresh food at your doorstep in 30 minutes.
             </p>
-            <form className="hero-search" onSubmit={handleSearch}>
-              <div className="search-wrapper">
-                <FiSearch className="search-icon" size={20} />
-                <input
-                  type="text"
-                  placeholder="Search restaurants, cuisines, dishes..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="search-input"
-                />
-                <button type="submit" className="btn btn-primary search-btn">Search</button>
+
+            {/* Order Now + Stats row */}
+            <div className="hero-bottom-row">
+              <Link to="/restaurants" className="btn-order-now">
+                Order Now <FiArrowRight size={16} />
+              </Link>
+              <div className="hero-stats">
+                <div className="stat-item"><FiStar className="stat-icon" /><span><strong>4.8★</strong> Rating</span></div>
+                <div className="stat-item"><FiClock className="stat-icon" /><span><strong>30min</strong> Delivery</span></div>
+                <div className="stat-item"><FiTruck className="stat-icon" /><span><strong>Free</strong> on ৳500+</span></div>
               </div>
-            </form>
-            <div className="hero-stats">
-              <div className="stat-item"><FiStar className="stat-icon" /><span><strong>4.8★</strong> Rating</span></div>
-              <div className="stat-item"><FiClock className="stat-icon" /><span><strong>30min</strong> Delivery</span></div>
-              <div className="stat-item"><FiTruck className="stat-icon" /><span><strong>Free</strong> on ৳500+</span></div>
             </div>
           </div>
+
           <div className="hero-illustration">
             <div className="hero-img-wrapper">
               <div className="hero-circle" />
               <div className="hero-food-emoji">🍛</div>
-              <div className="floating-card card-1">🍕 Pizza ৳180</div>
-              <div className="floating-card card-2">🚀 30 min</div>
+              <div className="floating-card card-1">🚚Quick Delivery</div>
+              <div className="floating-card card-2">🍔 Delicious</div>
               <div className="floating-card card-3">⭐ 4.9</div>
             </div>
           </div>
@@ -171,16 +164,11 @@ export default function Home() {
           </div>
           <div className="recommendations-grid">
             {recommendations.slice(0, 4).map(item => (
-              <Link
-                key={item._id}
-                to={`/restaurants/${item.restaurant._id}`}
-                className="rec-card card"
-              >
+              <Link key={item._id} to={`/restaurants/${item.restaurant._id}`} className="rec-card card">
                 <div className="rec-image">
                   {item.image
                     ? <img src={item.image} alt={item.name} />
-                    : <div className="rec-placeholder">🍽️</div>
-                  }
+                    : <div className="rec-placeholder">🍽️</div>}
                 </div>
                 <div className="rec-info">
                   <div className="rec-name">{item.name}</div>

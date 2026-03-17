@@ -17,6 +17,8 @@ const NEXT_STATUS = {
 };
 
 const STATUS_COLORS = {
+  payment_pending:  'badge-yellow',
+  payment_rejected: 'badge-red',
   pending: 'badge-yellow', confirmed: 'badge-blue', preparing: 'badge-blue',
   ready_for_pickup: 'badge-green', picked_up: 'badge-green', on_the_way: 'badge-blue',
   delivered: 'badge-green', cancelled: 'badge-red'
@@ -57,15 +59,20 @@ export default function RestaurantOrders() {
     try {
       await updateOrderStatus(orderId, { status });
       toast.success(`Order marked as ${status.replace(/_/g, ' ')}`);
-      fetchOrders();
+      setOrders(prev => prev.map(o => o._id === orderId ? { ...o, status } : o));
     } catch (_) {}
   };
 
   const handleNewMessage = (msg) => {
-    const orderId = msg.order;
-    setUnreadChats(prev => ({ ...prev, [orderId]: (prev[orderId] || 0) + 1 }));
-    const order = orders.find(o => o._id === orderId || String(o._id) === String(orderId));
-    if (order && (!activeChatOrder || activeChatOrder._id !== orderId)) {
+    const orderId = String(msg.order || msg.order?._id || '');
+    const isAlreadyOpen = activeChatOrder && String(activeChatOrder._id) === orderId;
+    // Only increment unread badge if panel is NOT already open for this order
+    if (!isAlreadyOpen) {
+      setUnreadChats(prev => ({ ...prev, [orderId]: (prev[orderId] || 0) + 1 }));
+    }
+    // Auto-open chat panel for this order
+    const order = orders.find(o => String(o._id) === orderId);
+    if (order && !isAlreadyOpen) {
       setActiveChatOrder(order);
     }
   };
@@ -79,6 +86,7 @@ export default function RestaurantOrders() {
       <ChatNotification activeOrderIds={activeOrderIds} onNewMessage={handleNewMessage} />
 
       <aside className="dashboard-sidebar">
+        <Link to="/" className="sidebar-rmsr-home">RMSR Home</Link>
         <div className="sidebar-logo">
           <div className="sidebar-logo-icon">R</div>
           <div><div className="sidebar-brand">Restaurant</div></div>
@@ -101,7 +109,7 @@ export default function RestaurantOrders() {
           <select className="form-input" value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)} style={{ maxWidth: 180 }}>
             <option value="">All Orders</option>
-            {['pending','confirmed','preparing','ready_for_pickup','delivered','cancelled'].map(s => (
+            {['pending','confirmed','preparing','ready_for_pickup','picked_up','on_the_way','delivered','cancelled'].map(s => (
               <option key={s} value={s}>{s.replace(/_/g,' ')}</option>
             ))}
           </select>

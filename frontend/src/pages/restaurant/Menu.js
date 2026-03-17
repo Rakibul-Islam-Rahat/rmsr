@@ -77,19 +77,21 @@ export default function RestaurantMenu() {
   return (
     <div className="dashboard-layout">
       <aside className="dashboard-sidebar">
+        <Link to="/" className="sidebar-rmsr-home">RMSR Home</Link>
         <div className="sidebar-logo"><div className="sidebar-logo-icon">R</div><div><div className="sidebar-brand">Restaurant</div></div></div>
         <nav className="sidebar-nav">
-          <Link to="/restaurant" className="sidebar-link"><FiHome /></Link>
-          <Link to="/restaurant/orders" className="sidebar-link"><FiList /></Link>
+<Link to="/restaurant" className="sidebar-link"><FiHome />Dashboard</Link>
+          <Link to="/restaurant/orders" className="sidebar-link"><FiList />Orders</Link>
           <Link to="/restaurant/menu" className="sidebar-link active"><FiGrid />Menu</Link>
-          <Link to="/restaurant/analytics" className="sidebar-link"><FiBarChart2 /></Link>
-          <Link to="/restaurant/settings" className="sidebar-link"><FiSettings /></Link>
+          <Link to="/restaurant/analytics" className="sidebar-link"><FiBarChart2 />Analytics</Link>
+          <Link to="/restaurant/settings" className="sidebar-link"><FiSettings />Settings</Link>
         </nav>
-        <button className="sidebar-logout" onClick={() => { logout(); navigate('/'); }}><FiLogOut /></button>
+        <button className="sidebar-logout" onClick={() => { logout(); navigate('/'); }}><FiLogOut />Logout</button>
       </aside>
       <main className="dashboard-main">
         <div className="dashboard-topbar">
-          <h1 className="dashboard-title">Menu Management</h1>
+          <h1 className="dashboard-title">Menu</h1>
+          
           <button className="btn btn-primary" onClick={openAdd}><FiPlus /> Add Item</button>
         </div>
         <div className="dashboard-content">

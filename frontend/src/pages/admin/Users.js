@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getAdminUsers, toggleUserStatus, adminDeleteUser } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { FiHome, FiGrid, FiUsers, FiPackage, FiLogOut, FiTrash2, FiAlertTriangle } from 'react-icons/fi';
+import { FiHome, FiGrid, FiUsers, FiPackage, FiLogOut, FiTrash2, FiDollarSign } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import '../admin/Dashboard.css';
 
@@ -13,7 +13,7 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
-  const [deleteTarget, setDeleteTarget] = useState(null); // user to delete
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { fetchUsers(); }, [roleFilter]);
@@ -63,6 +63,7 @@ export default function AdminUsers() {
   return (
     <div className="dashboard-layout">
       <aside className="dashboard-sidebar">
+        <Link to="/" className="sidebar-rmsr-home">RMSR Home</Link>
         <div className="sidebar-logo">
           <div className="sidebar-logo-icon">R</div>
           <div><div className="sidebar-brand">RMSR Admin</div></div>
@@ -72,6 +73,7 @@ export default function AdminUsers() {
           <Link to="/admin/restaurants" className="sidebar-link"><FiGrid />Restaurants</Link>
           <Link to="/admin/users" className="sidebar-link active"><FiUsers />Users</Link>
           <Link to="/admin/orders" className="sidebar-link"><FiPackage />Orders</Link>
+          <Link to="/admin/earnings" className="sidebar-link"><FiDollarSign />Earnings</Link>
         </nav>
         <button className="sidebar-logout" onClick={() => { logout(); navigate('/'); }}>
           <FiLogOut />Logout
@@ -87,7 +89,6 @@ export default function AdminUsers() {
         </div>
 
         <div className="dashboard-content">
-          {/* Search & Filter */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
             <input
               className="form-input"
@@ -146,7 +147,6 @@ export default function AdminUsers() {
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                          {/* Activate / Deactivate */}
                           {u.role !== 'admin' && (
                             <button
                               className={`btn btn-sm ${u.isActive ? 'btn-ghost' : 'btn-primary'}`}
@@ -155,13 +155,11 @@ export default function AdminUsers() {
                               {u.isActive ? 'Deactivate' : 'Activate'}
                             </button>
                           )}
-                          {/* Delete button — not for admin accounts */}
                           {u.role !== 'admin' && (
                             <button
                               className="btn btn-sm"
                               style={{ background: '#fff5f5', color: '#e53e3e', border: '1px solid #fed7d7', display: 'flex', alignItems: 'center', gap: 4 }}
                               onClick={() => setDeleteTarget(u)}
-                              title={`Delete ${u.name}'s account`}
                             >
                               <FiTrash2 size={13} /> Delete
                             </button>
@@ -182,7 +180,6 @@ export default function AdminUsers() {
         </div>
       </main>
 
-      {/* Delete Confirmation Dialog */}
       {deleteTarget && (
         <div className="confirm-overlay" onClick={() => setDeleteTarget(null)}>
           <div className="confirm-box" onClick={e => e.stopPropagation()}>
@@ -197,9 +194,7 @@ export default function AdminUsers() {
               This action <strong>cannot be undone</strong>.
             </p>
             <div className="confirm-actions">
-              <button className="btn btn-outline" onClick={() => setDeleteTarget(null)}>
-                Cancel
-              </button>
+              <button className="btn btn-outline" onClick={() => setDeleteTarget(null)}>Cancel</button>
               <button className="btn-danger" onClick={handleDelete} disabled={deleting}>
                 {deleting ? 'Deleting...' : 'Yes, Delete'}
               </button>

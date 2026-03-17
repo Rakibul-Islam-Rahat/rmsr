@@ -70,7 +70,6 @@ export const cancelOrder = (id, data) => API.put(`/orders/${id}/cancel`, data);
 
 // Payments
 export const initiatePayment = (data) => API.post('/payments/initiate', data);
-export const verifyPayment = (orderId) => API.get(`/payments/verify/${orderId}`);
 
 // Reviews
 export const addReview = (data) => API.post('/reviews', data);
@@ -106,9 +105,18 @@ export const getAvailableOrders = () => API.get('/rider/available');
 export const acceptRiderOrder = (id) => API.post(`/rider/orders/${id}/accept`);
 export const updateRiderLocation = (data) => API.put('/rider/location', data);
 export const toggleRiderOnline = () => API.patch('/rider/toggle-online');
+export const getRiderStatus = () => API.get('/rider/status');
+
+
+export const verifyPayment = (orderId) => API.post(`/admin/orders/${orderId}/verify-payment`);
+export const rejectPayment = (orderId, reason) => API.post(`/admin/orders/${orderId}/reject-payment`, { reason });
 
 export default API;
 
 // Delete own account
 export const deleteAccount = () => API.delete('/users/delete-account');
 export const adminDeleteUser = (id) => API.delete(`/admin/users/${id}`);
+
+// Earnings
+export const getAdminEarnings = () => API.get('/admin/earnings');
+export const getRestaurantEarnings = () => API.get('/restaurants/earnings');

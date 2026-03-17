@@ -1,4 +1,6 @@
 import React, { useEffect, useRef } from 'react';
+import 'leaflet/dist/leaflet.css';
+import './LiveMap.css';
 
 // We use a dynamic import approach to avoid SSR issues with Leaflet
 // and fix the "window is not defined" error on some environments

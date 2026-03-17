@@ -47,6 +47,8 @@ const orderSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: [
+      'payment_pending',
+      'payment_rejected',
       'pending',
       'confirmed',
       'preparing',
@@ -91,7 +93,10 @@ const orderSchema = new mongoose.Schema({
 
 orderSchema.pre('save', function(next) {
   if (!this.orderNumber) {
-    this.orderNumber = 'RMSR' + Date.now() + Math.floor(Math.random() * 1000);
+    // Use timestamp + 5 random chars for much lower collision probability
+    const ts = Date.now().toString(36).toUpperCase();
+    const rand = Math.random().toString(36).substring(2, 7).toUpperCase();
+    this.orderNumber = 'RMSR-' + ts + '-' + rand;
   }
   next();
 });

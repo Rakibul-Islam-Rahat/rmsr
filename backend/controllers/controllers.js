@@ -37,7 +37,26 @@ const markAllRead = async (req, res) => {
 // ==================== CHAT ====================
 const getChatMessages = async (req, res) => {
   try {
-    const messages = await Message.find({ order: req.params.orderId })
+    const orderId = req.params.orderId;
+    // Verify user belongs to this order
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    const userId = req.user._id.toString();
+    const role = req.user.role;
+    const isCustomer = order.customer.toString() === userId;
+    const isRider = order.rider && order.rider.toString() === userId;
+    const isAdmin = role === 'admin';
+    let isOwner = false;
+    if (role === 'restaurant_owner') {
+      const rest = await Restaurant.findOne({ owner: req.user._id });
+      isOwner = rest && rest._id.toString() === order.restaurant.toString();
+    }
+    if (!isCustomer && !isRider && !isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Not authorized to view this chat' });
+    }
+
+    const messages = await Message.find({ order: orderId })
       .populate('sender', 'name avatar role')
       .sort({ createdAt: 1 });
     res.json({ success: true, messages });
@@ -51,6 +70,24 @@ const sendMessage = async (req, res) => {
     const { orderId, message } = req.body;
     if (!orderId || !message) {
       return res.status(400).json({ success: false, message: 'orderId and message required' });
+    }
+
+    // Verify user belongs to this order before allowing chat
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    const userId = req.user._id.toString();
+    const role = req.user.role;
+    const isCustomer = order.customer.toString() === userId;
+    const isRider = order.rider && order.rider.toString() === userId;
+    const isAdmin = role === 'admin';
+    let isOwner = false;
+    if (role === 'restaurant_owner') {
+      const rest = await Restaurant.findOne({ owner: req.user._id });
+      isOwner = rest && rest._id.toString() === order.restaurant.toString();
+    }
+    if (!isCustomer && !isRider && !isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Not authorized to chat on this order' });
     }
 
     const msg = await Message.create({
@@ -240,7 +277,7 @@ const getDashboardStats = async (req, res) => {
       Order.countDocuments(),
       Order.aggregate([{ $match: { paymentStatus: 'paid' } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
       Restaurant.countDocuments({ isApproved: false }),
-      Order.countDocuments({ status: { $in: ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'picked_up', 'on_the_way'] } }),
+      Order.countDocuments({ status: { $in: ['payment_pending', 'pending', 'confirmed', 'preparing', 'ready_for_pickup', 'picked_up', 'on_the_way'] } }),
       Order.countDocuments({ createdAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) } })
     ]);
 
@@ -270,6 +307,27 @@ const approveRestaurant = async (req, res) => {
       { new: true }
     );
     if (!restaurant) return res.status(404).json({ success: false, message: 'Restaurant not found' });
+
+    // Notify the restaurant owner
+    const { Notification } = require('../models/index');
+    const io = req.app.get('io');
+    if (req.body.approve) {
+      await Notification.create({
+        user: restaurant.owner,
+        title: '🎉 Restaurant Approved!',
+        body: `Your restaurant "${restaurant.name}" has been approved and is now live on RMSR Food.`,
+        type: 'order'
+      });
+    } else {
+      await Notification.create({
+        user: restaurant.owner,
+        title: '❌ Restaurant Not Approved',
+        body: `Your restaurant "${restaurant.name}" was not approved. Please contact support for details.`,
+        type: 'order'
+      });
+    }
+    if (io) io.to(`user_${restaurant.owner}`).emit('new_notification', { type: 'approval' });
+
     res.json({ success: true, message: `Restaurant ${req.body.approve ? 'approved' : 'rejected'}`, restaurant });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -298,6 +356,14 @@ const toggleUserStatus = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    // Prevent admin from deactivating themselves
+    if (user._id.toString() === req.user._id.toString()) {
+      return res.status(400).json({ success: false, message: 'You cannot deactivate your own account' });
+    }
+    // Prevent deactivating other admins
+    if (user.role === 'admin') {
+      return res.status(403).json({ success: false, message: 'Cannot deactivate admin accounts' });
+    }
     user.isActive = !user.isActive;
     await user.save();
     res.json({ success: true, message: `User ${user.isActive ? 'activated' : 'deactivated'}` });

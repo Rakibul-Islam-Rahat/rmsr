@@ -35,6 +35,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import AdminRestaurants from './pages/admin/Restaurants';
 import AdminUsers from './pages/admin/Users';
 import AdminOrders from './pages/admin/Orders';
+import AdminEarnings from './pages/admin/Earnings';
 
 // Common components
 import Navbar from './components/common/Navbar';
@@ -52,6 +53,8 @@ const ProtectedRoute = ({ children, roles }) => {
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="page-loader"><div className="spinner" /></div>;
+  // Only redirect logged-in users away from login/register/forgot-password
+  // They can still visit home, restaurants etc.
   if (user) {
     if (user.role === 'admin') return <Navigate to="/admin" replace />;
     if (user.role === 'restaurant_owner') return <Navigate to="/restaurant" replace />;
@@ -64,9 +67,14 @@ const PublicRoute = ({ children }) => {
 const CustomerLayout = ({ children }) => (
   <>
     <Navbar />
-    <main style={{ minHeight: 'calc(100vh - 140px)' }}>{children}</main>
+    <main style={{ minHeight: 'calc(100vh - 140px)', paddingTop: '64px' }}>{children}</main>
     <Footer />
   </>
+);
+
+/* Customer dashboard pages — no Navbar/Footer, full viewport */
+const CustomerDashLayout = ({ children }) => (
+  <main style={{ minHeight: '100vh' }}>{children}</main>
 );
 
 const DashboardLayout = ({ children }) => (
@@ -83,14 +91,15 @@ function AppRoutes() {
 
       {/* Customer */}
       <Route path="/" element={<CustomerLayout><Home /></CustomerLayout>} />
+      <Route path="/home" element={<Navigate to="/" replace />} />
       <Route path="/restaurants" element={<CustomerLayout><Restaurants /></CustomerLayout>} />
       <Route path="/restaurants/:id" element={<CustomerLayout><RestaurantDetail /></CustomerLayout>} />
-      <Route path="/cart" element={<CustomerLayout><Cart /></CustomerLayout>} />
-      <Route path="/checkout" element={<ProtectedRoute roles={['customer']}><CustomerLayout><Checkout /></CustomerLayout></ProtectedRoute>} />
-      <Route path="/orders" element={<ProtectedRoute roles={['customer']}><CustomerLayout><Orders /></CustomerLayout></ProtectedRoute>} />
-      <Route path="/orders/:id" element={<ProtectedRoute roles={['customer']}><CustomerLayout><OrderTracking /></CustomerLayout></ProtectedRoute>} />
-      <Route path="/profile" element={<ProtectedRoute roles={['customer']}><CustomerLayout><Profile /></CustomerLayout></ProtectedRoute>} />
-      <Route path="/loyalty" element={<ProtectedRoute roles={['customer']}><CustomerLayout><Loyalty /></CustomerLayout></ProtectedRoute>} />
+      <Route path="/cart" element={<CustomerDashLayout><Cart /></CustomerDashLayout>} />
+      <Route path="/checkout" element={<ProtectedRoute roles={['customer']}><CustomerDashLayout><Checkout /></CustomerDashLayout></ProtectedRoute>} />
+      <Route path="/orders" element={<ProtectedRoute roles={['customer']}><CustomerDashLayout><Orders /></CustomerDashLayout></ProtectedRoute>} />
+      <Route path="/orders/:id" element={<ProtectedRoute roles={['customer']}><CustomerDashLayout><OrderTracking /></CustomerDashLayout></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute roles={['customer']}><CustomerDashLayout><Profile /></CustomerDashLayout></ProtectedRoute>} />
+      <Route path="/loyalty" element={<ProtectedRoute roles={['customer']}><CustomerDashLayout><Loyalty /></CustomerDashLayout></ProtectedRoute>} />
       <Route path="/payment/*" element={<CustomerLayout><PaymentResult /></CustomerLayout>} />
 
       {/* Restaurant Owner */}
@@ -108,6 +117,7 @@ function AppRoutes() {
       <Route path="/admin/restaurants" element={<ProtectedRoute roles={['admin']}><DashboardLayout><AdminRestaurants /></DashboardLayout></ProtectedRoute>} />
       <Route path="/admin/users" element={<ProtectedRoute roles={['admin']}><DashboardLayout><AdminUsers /></DashboardLayout></ProtectedRoute>} />
       <Route path="/admin/orders" element={<ProtectedRoute roles={['admin']}><DashboardLayout><AdminOrders /></DashboardLayout></ProtectedRoute>} />
+      <Route path="/admin/earnings" element={<ProtectedRoute roles={['admin']}><DashboardLayout><AdminEarnings /></DashboardLayout></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -2,6 +2,6 @@
 const express = require('express');
 const router = express.Router();
 const { getLoyalty } = require('../controllers/controllers');
-const { protect } = require('../middleware/auth');
-router.get('/', protect, getLoyalty);
+const { protect, authorize } = require('../middleware/auth');
+router.get('/', protect, authorize('customer'), getLoyalty);
 module.exports = router;

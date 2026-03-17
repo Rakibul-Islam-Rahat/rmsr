@@ -9,7 +9,7 @@ import './RestaurantDetail.css';
 
 export default function RestaurantDetail() {
   const { id } = useParams();
-  const { addToCart, cartCount } = useAuth();
+  const { user, addToCart, cartCount } = useAuth();
   const [restaurant, setRestaurant] = useState(null);
   const [menu, setMenu] = useState({});
   const [reviews, setReviews] = useState([]);
@@ -39,6 +39,16 @@ export default function RestaurantDetail() {
   };
 
   const handleAddToCart = (item) => {
+    // Non-customers get a clear redirect suggestion
+    if (user && user.role !== 'customer') {
+      const msgs = {
+        restaurant_owner: 'Restaurant owners cannot place orders. Please use a customer account.',
+        rider: 'Riders cannot place orders. Please use a customer account.',
+        admin: 'Admin accounts cannot place orders. Please use a customer account.',
+      };
+      toast.error(msgs[user.role] || 'This account cannot place orders. Please use a customer account.');
+      return;
+    }
     const success = addToCart(item, restaurant);
     if (success) {
       setQuantities(prev => ({ ...prev, [item._id]: (prev[item._id] || 0) + 1 }));

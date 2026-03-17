@@ -35,8 +35,9 @@ const register = async (req, res) => {
       await Loyalty.create({ user: user._id });
     }
 
-    // Send welcome email
-    sendEmail({
+    // Welcome email disabled (free hosting blocks SMTP)
+    // sendEmail disabled - users see welcome via in-app notification
+    /* sendEmail({
       to: user.email,
       subject: 'Welcome to RMSR Food Delivery! 🎉',
       html: `
@@ -63,7 +64,7 @@ const register = async (req, res) => {
           </div>
         </div>
       `
-    });
+    }); */
 
     const token = generateToken(user._id);
 
@@ -212,10 +213,11 @@ const forgotPassword = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpire = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-    // Save OTP to user
+    // Save OTP to user, reset attempt counter
     await User.findByIdAndUpdate(user._id, {
       otp: otp,
-      otpExpire: otpExpire
+      otpExpire: otpExpire,
+      otpAttempts: 0
     });
 
     // Send OTP email
@@ -262,16 +264,26 @@ const verifyOtp = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email and OTP are required' });
     }
 
-    const user = await User.findOne({
-      email: email.toLowerCase().trim(),
-      otp: otp.toString(),
-      otpExpire: { $gt: new Date() }
-    });
-
-    if (!user) {
+    const userRecord = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!userRecord) {
       return res.status(400).json({ success: false, message: 'Invalid or expired OTP code' });
     }
 
+    // Block after 5 failed attempts
+    if (userRecord.otpAttempts >= 5) {
+      return res.status(429).json({ success: false, message: 'Too many failed attempts. Please request a new reset code.' });
+    }
+
+    const valid = userRecord.otp === otp.toString() &&
+                  userRecord.otpExpire && userRecord.otpExpire > new Date();
+
+    if (!valid) {
+      await User.findByIdAndUpdate(userRecord._id, { $inc: { otpAttempts: 1 } });
+      return res.status(400).json({ success: false, message: 'Invalid or expired OTP code' });
+    }
+
+    // Reset attempt counter on success
+    await User.findByIdAndUpdate(userRecord._id, { otpAttempts: 0 });
     res.json({ success: true, message: 'OTP verified successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -304,6 +316,7 @@ const resetPassword = async (req, res) => {
     user.password = newPassword;
     user.otp = undefined;
     user.otpExpire = undefined;
+    user.otpAttempts = 0;
     await user.save();
 
     // Send confirmation email

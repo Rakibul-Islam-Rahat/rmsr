@@ -32,7 +32,7 @@ const messageSchema = new mongoose.Schema({
   order: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true },
   sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   senderRole: { type: String, enum: ['customer', 'restaurant_owner', 'rider', 'admin'] },
-  message: { type: String, required: true, trim: true },
+  message: { type: String, required: true, trim: true, maxlength: [1000, 'Message cannot exceed 1000 characters'] },
   isRead: { type: Boolean, default: false },
   attachmentUrl: { type: String, default: '' }
 }, { timestamps: true });

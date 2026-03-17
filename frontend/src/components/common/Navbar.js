@@ -6,7 +6,15 @@ import {
   FiShoppingCart, FiUser, FiLogOut, FiMenu, FiX,
   FiBell, FiHome, FiGrid, FiPackage, FiAward, FiChevronDown
 } from 'react-icons/fi';
+import { io } from 'socket.io-client';
 import './Navbar.css';
+
+const ROLE_CONFIG = {
+  admin:            { label: 'Admin',      color: '#8e44ad', bg: '#f3e5f5', dashPath: '/admin' },
+  restaurant_owner: { label: 'Restaurant', color: '#e67e22', bg: '#fff3e0', dashPath: '/restaurant' },
+  rider:            { label: 'Rider',      color: '#27ae60', bg: '#e8f5e9', dashPath: '/rider' },
+  customer:         { label: 'Customer',   color: '#2980b9', bg: '#e3f2fd', dashPath: '/orders' },
+};
 
 export default function Navbar() {
   const { user, logout, cartCount } = useAuth();
@@ -30,6 +38,23 @@ export default function Navbar() {
   useEffect(() => {
     if (user) fetchNotifications();
   }, [user]);
+
+  // Real-time notification refresh via socket
+  useEffect(() => {
+    if (!user) return;
+    const socket = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000', {
+      transports: ['websocket', 'polling']
+    });
+    const join = () => {
+      socket.emit('join_user', user._id);
+      if (user.role === 'admin') socket.emit('join_admin');
+    };
+    if (socket.connected) join(); else socket.on('connect', join);
+    // Refresh notification badge on any new notification
+    socket.on('new_notification', () => fetchNotifications());
+    socket.on('payment_pending', () => fetchNotifications());
+    return () => socket.disconnect();
+  }, [user?._id]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -63,9 +88,11 @@ export default function Navbar() {
   };
 
   const navLinks = [
-    { to: '/', label: 'Home', icon: <FiHome /> },
-    { to: '/restaurants', label: 'Restaurants', icon: <FiGrid /> },
+    { to: '/', label: 'Home' },
+    { to: '/restaurants', label: 'Restaurants' },
   ];
+
+  const roleConf = user ? (ROLE_CONFIG[user.role] || ROLE_CONFIG.customer) : null;
 
   return (
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
@@ -79,114 +106,133 @@ export default function Navbar() {
 
         {/* Desktop nav links */}
         <div className="navbar-links">
-          {navLinks.map(link => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className={`nav-link ${location.pathname === link.to ? 'active' : ''}`}
-            >
-              {link.icon}
-              {link.label}
+          {navLinks.map(l => (
+            <Link key={l.to} to={l.to}
+              className={`nav-link ${location.pathname === l.to ? 'active' : ''}`}>
+              {l.label}
             </Link>
           ))}
         </div>
 
         {/* Right actions */}
         <div className="navbar-actions">
-          {/* Cart */}
-          <Link to="/cart" className="nav-icon-btn cart-btn">
-            <FiShoppingCart size={20} />
-            {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
-          </Link>
+          {/* Notifications */}
+          {user && (
+            <div className="notif-wrapper" ref={notifRef}>
+              <button className="icon-btn" onClick={() => {
+                setNotifOpen(!notifOpen);
+                if (!notifOpen) fetchNotifications();
+              }}>
+                <FiBell size={20} />
+                {unreadCount > 0 && <span className="badge-dot">{unreadCount}</span>}
+              </button>
+              {notifOpen && (
+                <div className="notif-dropdown">
+                  <div className="notif-header">
+                    <span>Notifications</span>
+                    {unreadCount > 0 && (
+                      <button className="mark-read-btn" onClick={handleMarkAllRead}>
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="notif-empty">No notifications yet</div>
+                  ) : (
+                    notifications.map(n => (
+                      <div key={n._id} className={`notif-item ${!n.isRead ? 'unread' : ''}`}>
+                        <div className="notif-title">{n.title}</div>
+                        <div className="notif-body">{n.body}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
+          {/* Cart - customers only */}
+          {(!user || user.role === 'customer') && (
+            <Link to="/cart" className="icon-btn cart-btn">
+              <FiShoppingCart size={20} />
+              {cartCount > 0 && <span className="badge-dot">{cartCount}</span>}
+            </Link>
+          )}
+
+          {/* User menu */}
           {user ? (
-            <>
-              {/* Notifications */}
-              <div className="notif-wrapper" ref={notifRef}>
-                <button
-                  className="nav-icon-btn"
-                  onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen) fetchNotifications(); }}
-                >
-                  <FiBell size={20} />
-                  {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
-                </button>
-                {notifOpen && (
-                  <div className="notif-dropdown">
-                    <div className="notif-header">
-                      <span>Notifications</span>
-                      {unreadCount > 0 && (
-                        <button className="mark-read-btn" onClick={handleMarkAllRead}>Mark all read</button>
-                      )}
-                    </div>
-                    <div className="notif-list">
-                      {notifications.length === 0 ? (
-                        <div className="notif-empty">No notifications yet</div>
-                      ) : (
-                        notifications.map(n => (
-                          <div key={n._id} className={`notif-item ${!n.isRead ? 'unread' : ''}`}>
-                            <div className="notif-title">{n.title}</div>
-                            <div className="notif-body">{n.body}</div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* User menu */}
-              <div className="user-menu-wrapper" ref={userRef}>
-                <button className="user-menu-btn" onClick={() => setUserMenuOpen(!userMenuOpen)}>
-                  <div className="user-avatar">
-                    {user.avatar
-                      ? <img src={user.avatar} alt={user.name} />
-                      : <span>{user.name?.charAt(0).toUpperCase()}</span>
-                    }
-                  </div>
+            <div className="user-menu-wrapper" ref={userRef}>
+              <button className="user-menu-btn" onClick={() => setUserMenuOpen(!userMenuOpen)}>
+                <div className="user-avatar-sm">
+                  {user.avatar
+                    ? <img src={user.avatar} alt={user.name} />
+                    : <span>{user.name?.charAt(0)?.toUpperCase()}</span>
+                  }
+                </div>
+                <div className="user-btn-info">
                   <span className="user-name">{user.name?.split(' ')[0]}</span>
-                  <FiChevronDown size={14} />
-                </button>
-                {userMenuOpen && (
-                  <div className="user-dropdown">
-                    <div className="user-dropdown-header">
-                      <div className="user-dropdown-name">{user.name}</div>
-                      <div className="user-dropdown-role">{user.role.replace('_', ' ')}</div>
+                  <span className="user-role-tag" style={{ background: roleConf.bg, color: roleConf.color }}>
+                    {roleConf.label}
+                  </span>
+                </div>
+                <FiChevronDown size={13} className={`chevron ${userMenuOpen ? 'open' : ''}`} />
+              </button>
+
+              {userMenuOpen && (
+                <div className="user-dropdown">
+                  {/* Header card */}
+                  <div className="user-dropdown-card">
+                    <div className="user-dropdown-avatar">
+                      {user.avatar
+                        ? <img src={user.avatar} alt={user.name} />
+                        : <span>{user.name?.charAt(0)?.toUpperCase()}</span>
+                      }
                     </div>
-                    {user.role === 'customer' && (
-                      <>
-                        <Link to="/profile" className="user-dropdown-item" onClick={() => setUserMenuOpen(false)}>
-                          <FiUser size={15} /> My Profile
-                        </Link>
-                        <Link to="/orders" className="user-dropdown-item" onClick={() => setUserMenuOpen(false)}>
-                          <FiPackage size={15} /> My Orders
-                        </Link>
-                        <Link to="/loyalty" className="user-dropdown-item" onClick={() => setUserMenuOpen(false)}>
-                          <FiAward size={15} /> Loyalty Points
-                        </Link>
-                      </>
-                    )}
-                    {user.role === 'restaurant_owner' && (
-                      <Link to="/restaurant" className="user-dropdown-item" onClick={() => setUserMenuOpen(false)}>
-                        <FiGrid size={15} /> My Dashboard
-                      </Link>
-                    )}
-                    {user.role === 'rider' && (
-                      <Link to="/rider" className="user-dropdown-item" onClick={() => setUserMenuOpen(false)}>
-                        <FiGrid size={15} /> Rider Dashboard
-                      </Link>
-                    )}
-                    {user.role === 'admin' && (
-                      <Link to="/admin" className="user-dropdown-item" onClick={() => setUserMenuOpen(false)}>
-                        <FiGrid size={15} /> Admin Panel
-                      </Link>
-                    )}
-                    <button className="user-dropdown-item logout" onClick={handleLogout}>
-                      <FiLogOut size={15} /> Logout
-                    </button>
+                    <div className="user-dropdown-info">
+                      <div className="user-dropdown-name">{user.name}</div>
+                      <div className="user-dropdown-email">{user.email}</div>
+                      <span className="user-dropdown-badge" style={{ background: roleConf.bg, color: roleConf.color }}>
+                        {roleConf.label}
+                      </span>
+                    </div>
                   </div>
-                )}
-              </div>
-            </>
+
+                  <div className="dropdown-divider" />
+
+                  {/* Home - always shown */}
+                  <Link to="/" className="dropdown-item" onClick={() => setUserMenuOpen(false)}>
+                    <FiHome size={15} /> Home
+                  </Link>
+
+                  {/* Dashboard link — role specific */}
+                  {user.role === 'customer' && (
+                    <Link to="/orders" className="dropdown-item" onClick={() => setUserMenuOpen(false)}>
+                      <FiPackage size={15} /> My Dashboard
+                    </Link>
+                  )}
+                  {user.role === 'restaurant_owner' && (
+                    <Link to="/restaurant" className="dropdown-item" onClick={() => setUserMenuOpen(false)}>
+                      <FiGrid size={15} /> Dashboard
+                    </Link>
+                  )}
+                  {user.role === 'admin' && (
+                    <Link to="/admin" className="dropdown-item" onClick={() => setUserMenuOpen(false)}>
+                      <FiGrid size={15} /> Admin Panel
+                    </Link>
+                  )}
+                  {user.role === 'rider' && (
+                    <Link to="/rider" className="dropdown-item" onClick={() => setUserMenuOpen(false)}>
+                      <FiGrid size={15} /> Rider Dashboard
+                    </Link>
+                  )}
+
+                  <div className="dropdown-divider" />
+                  <button className="dropdown-item logout-item" onClick={handleLogout}>
+                    <FiLogOut size={15} /> Logout
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="auth-btns">
               <Link to="/login" className="btn btn-outline btn-sm">Login</Link>
@@ -204,27 +250,34 @@ export default function Navbar() {
       {/* Mobile menu */}
       {menuOpen && (
         <div className="mobile-menu">
-          {navLinks.map(link => (
-            <Link key={link.to} to={link.to} className="mobile-nav-link" onClick={() => setMenuOpen(false)}>
-              {link.icon} {link.label}
-            </Link>
-          ))}
+          <Link to="/" className="mobile-link" onClick={() => setMenuOpen(false)}><FiHome /> Home</Link>
+          <Link to="/restaurants" className="mobile-link" onClick={() => setMenuOpen(false)}><FiGrid /> Restaurants</Link>
           {user ? (
             <>
               {user.role === 'customer' && (
                 <>
-                  <Link to="/orders" className="mobile-nav-link" onClick={() => setMenuOpen(false)}><FiPackage /> Orders</Link>
-                  <Link to="/loyalty" className="mobile-nav-link" onClick={() => setMenuOpen(false)}><FiAward /> Loyalty</Link>
-                  <Link to="/profile" className="mobile-nav-link" onClick={() => setMenuOpen(false)}><FiUser /> Profile</Link>
+                  <Link to="/orders" className="mobile-link" onClick={() => setMenuOpen(false)}><FiPackage /> My Orders</Link>
+                  <Link to="/profile" className="mobile-link" onClick={() => setMenuOpen(false)}><FiUser /> Profile</Link>
                 </>
               )}
-              <button className="mobile-nav-link logout" onClick={handleLogout}><FiLogOut /> Logout</button>
+              {user.role === 'restaurant_owner' && (
+                <Link to="/restaurant" className="mobile-link" onClick={() => setMenuOpen(false)}><FiGrid /> Dashboard</Link>
+              )}
+              {user.role === 'admin' && (
+                <Link to="/admin" className="mobile-link" onClick={() => setMenuOpen(false)}><FiGrid /> Admin Panel</Link>
+              )}
+              {user.role === 'rider' && (
+                <Link to="/rider" className="mobile-link" onClick={() => setMenuOpen(false)}><FiGrid /> Rider Dashboard</Link>
+              )}
+              <button className="mobile-link" onClick={() => { handleLogout(); setMenuOpen(false); }}>
+                <FiLogOut /> Logout
+              </button>
             </>
           ) : (
-            <div style={{ display: 'flex', gap: 10, padding: '10px 20px' }}>
-              <Link to="/login" className="btn btn-outline btn-sm" onClick={() => setMenuOpen(false)}>Login</Link>
-              <Link to="/register" className="btn btn-primary btn-sm" onClick={() => setMenuOpen(false)}>Sign Up</Link>
-            </div>
+            <>
+              <Link to="/login" className="mobile-link" onClick={() => setMenuOpen(false)}>Login</Link>
+              <Link to="/register" className="mobile-link" onClick={() => setMenuOpen(false)}>Sign Up</Link>
+            </>
           )}
         </div>
       )}

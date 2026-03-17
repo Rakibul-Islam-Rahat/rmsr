@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { createOrder } from '../../services/api';
 import { FiMapPin, FiCreditCard, FiClock, FiTag, FiCheckCircle, FiCopy } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import CustomerSidebar from './CustomerSidebar';
+import './CustomerDashboard.css';
 import './Checkout.css';
 
 const PAYMENT_METHODS = [
@@ -33,7 +35,10 @@ export default function Checkout() {
   });
 
   const deliveryFee = cartRestaurant?.deliveryFee || 30;
-  const loyaltyDiscount = Math.floor(loyaltyPoints / 100) * 10;
+  const loyaltyDiscount = Math.min(
+    Math.floor(loyaltyPoints / 100) * 10,
+    cartTotal  // discount cannot exceed subtotal — delivery fee always charged
+  );
   const total = Math.max(0, cartTotal + deliveryFee - loyaltyDiscount);
 
   const isOnlinePayment = ['bkash', 'nagad', 'rocket'].includes(paymentMethod);
@@ -52,6 +57,16 @@ export default function Checkout() {
     }
     if (isOnlinePayment && !transactionId.trim()) {
       return toast.error(`Please enter your ${paymentMethod} Transaction ID after sending payment`);
+    }
+    // Basic format validation — TxnIDs are alphanumeric, min 6 chars
+    if (isOnlinePayment && transactionId.trim()) {
+      const txn = transactionId.trim();
+      if (txn.length < 6) {
+        return toast.error('Transaction ID is too short. Please check and enter the correct ID from your payment app.');
+      }
+      if (!/^[a-zA-Z0-9]+$/.test(txn)) {
+        return toast.error('Transaction ID should only contain letters and numbers. Please copy it from your payment app.');
+      }
     }
 
     setLoading(true);
@@ -102,6 +117,11 @@ export default function Checkout() {
   }
 
   return (
+    <div className="customer-dashboard">
+      <CustomerSidebar />
+      <div className="customer-main">
+        <div className="customer-topbar"><h1 className="customer-page-title">Checkout</h1></div>
+        <div className="customer-content">
     <div className="checkout-page container">
       <h1 className="page-title">Checkout</h1>
       <div className="checkout-layout">
@@ -302,6 +322,9 @@ export default function Checkout() {
                     : `Enter Transaction ID First`
               }
             </button>
+          </div>
+        </div>
+      </div>
           </div>
         </div>
       </div>

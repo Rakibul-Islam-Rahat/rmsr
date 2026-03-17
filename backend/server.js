@@ -32,7 +32,7 @@ app.set('io', io);
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    callback(null, true); // allow all for now
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true
 }));
@@ -80,7 +80,13 @@ app.get('/api/health', (req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Global error:', err.stack);
-  res.status(err.status || 500).json({ success: false, message: err.message || 'Internal server error' });
+  const isProd = process.env.NODE_ENV === 'production';
+  res.status(err.status || 500).json({
+    success: false,
+    message: isProd && err.status !== 400 && err.status !== 401 && err.status !== 403 && err.status !== 404
+      ? 'Internal server error'
+      : (err.message || 'Internal server error')
+  });
 });
 
 // 404 handler

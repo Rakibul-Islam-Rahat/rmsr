@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiAlertCircle } from 'react-icons/fi';
@@ -11,6 +11,22 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const cardRef = useRef(null);
+
+  // Close on outside click or ESC
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === 'Escape') navigate(-1);
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [navigate]);
+
+  const handleOverlayClick = (e) => {
+    if (cardRef.current && !cardRef.current.contains(e.target)) {
+      navigate(-1);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,7 +41,7 @@ export default function Login() {
       if (user.role === 'admin') navigate('/admin');
       else if (user.role === 'restaurant_owner') navigate('/restaurant');
       else if (user.role === 'rider') navigate('/rider');
-      else navigate('/');
+      else navigate('/orders'); // customer → straight to dashboard
     } catch (err) {
       const msg = err?.response?.data?.message || 'Invalid email or password';
       setErrorMsg(msg);
@@ -35,8 +51,8 @@ export default function Login() {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
+    <div className="auth-page" onClick={handleOverlayClick}>
+      <div className="auth-card" ref={cardRef}>
         <div className="auth-logo">
           <div className="auth-logo-icon">R</div>
           <span>RMSR Food</span>
@@ -44,7 +60,6 @@ export default function Login() {
         <h2 className="auth-title">Welcome back!</h2>
         <p className="auth-subtitle">Sign in to continue ordering delicious food</p>
 
-        {/* Inline error message */}
         {errorMsg && (
           <div className="auth-error-box">
             <FiAlertCircle size={16} />
@@ -86,15 +101,15 @@ export default function Login() {
             </div>
           </div>
 
-          <button type="submit" className="btn btn-primary w-full btn-lg" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-
-          <div style={{ textAlign: 'center', marginTop: 12 }}>
-            <Link to="/forgot-password" style={{ fontSize: 13, color: 'var(--text-muted)', textDecoration: 'underline' }}>
+          <div style={{ textAlign: 'right', marginTop: -8, marginBottom: 12 }}>
+            <Link to="/forgot-password" style={{ fontSize: 13, color: 'var(--primary)', fontWeight: 500 }}>
               Forgot your password?
             </Link>
           </div>
+
+          <button type="submit" className="btn btn-primary w-full btn-lg" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
+          </button>
         </form>
 
         <p className="auth-footer">

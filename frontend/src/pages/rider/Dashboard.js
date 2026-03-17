@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getRiderOrders, getAvailableOrders, acceptRiderOrder, updateRiderLocation, toggleRiderOnline, updateOrderStatus, updateProfile } from '../../services/api';
+import { useNavigate, Link } from 'react-router-dom';
+import { getRiderOrders, getAvailableOrders, acceptRiderOrder, updateRiderLocation, toggleRiderOnline, getRiderStatus, updateOrderStatus, updateProfile } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { io } from 'socket.io-client';
 import { FiMapPin, FiPhone, FiPackage, FiLogOut, FiNavigation, FiWifi, FiMessageSquare, FiTrash2, FiAlertTriangle, FiSettings, FiCamera } from 'react-icons/fi';
@@ -67,12 +67,14 @@ export default function RiderDashboard() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const [myRes, availRes] = await Promise.all([
+      const [myRes, availRes, statusRes] = await Promise.all([
         getRiderOrders(),
-        getAvailableOrders()
+        getAvailableOrders(),
+        getRiderStatus()
       ]);
       setMyOrders(myRes.data.orders || []);
       setAvailableOrders(availRes.data.orders || []);
+      setIsOnline(statusRes.data.isOnline || false);
     } catch (_) {}
     finally { setLoading(false); }
   };
@@ -209,10 +211,13 @@ export default function RiderDashboard() {
   };
 
   const handleNewMessage = (msg) => {
-    const orderId = String(msg.order);
-    setUnreadChats(prev => ({ ...prev, [orderId]: (prev[orderId] || 0) + 1 }));
+    const orderId = String(msg.order || msg.order?._id || '');
+    const isAlreadyOpen = activeChatOrder && String(activeChatOrder._id) === orderId;
+    if (!isAlreadyOpen) {
+      setUnreadChats(prev => ({ ...prev, [orderId]: (prev[orderId] || 0) + 1 }));
+    }
     const order = myOrders.find(o => String(o._id) === orderId);
-    if (order && (!activeChatOrder || String(activeChatOrder._id) !== orderId)) {
+    if (order && !isAlreadyOpen) {
       setActiveChatOrder(order);
     }
   };
@@ -256,6 +261,7 @@ export default function RiderDashboard() {
       <ChatNotification activeOrderIds={activeOrderIds} onNewMessage={handleNewMessage} />
 
       <aside className="dashboard-sidebar">
+        <Link to="/" className="sidebar-rmsr-home">RMSR Home</Link>
         <div className="sidebar-logo">
           <div className="sidebar-logo-icon">R</div>
           <div>
@@ -265,7 +271,7 @@ export default function RiderDashboard() {
         </div>
 
         <nav className="sidebar-nav">
-          <div
+<div
             className={`sidebar-link ${activeTab === 'available' ? 'active' : ''}`}
             onClick={() => setActiveTab('available')}
             style={{ cursor: 'pointer' }}
@@ -345,9 +351,8 @@ export default function RiderDashboard() {
 
       <main className="dashboard-main">
         <div className="dashboard-topbar">
-          <h1 className="dashboard-title">
-            {activeTab === 'available' ? 'Available Orders' : 'My Deliveries'}
-          </h1>
+          <h1 className="dashboard-title">Rider Dashboard</h1>
+          
           <button
             className={`online-toggle ${isOnline ? 'online' : ''}`}
             onClick={handleToggleOnline}

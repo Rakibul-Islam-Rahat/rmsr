@@ -7,6 +7,8 @@ import { FiSend, FiMapPin, FiPhone } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import LiveMap from '../../components/customer/LiveMap';
 import ChatNotification from '../../components/common/ChatNotification';
+import CustomerSidebar from './CustomerSidebar';
+import './CustomerDashboard.css';
 import './OrderTracking.css';
 
 const STATUS_STEPS = ['pending', 'confirmed', 'preparing', 'picked_up', 'on_the_way', 'delivered'];
@@ -31,7 +33,9 @@ export default function OrderTracking() {
   const [riderLocation, setRiderLocation] = useState(null);
   const [sending, setSending] = useState(false);
   const socketRef = useRef(null);
-  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const seenIdsRef = useRef(new Set());
+  const pendingRef = useRef(new Map());
 
   const paymentResult = searchParams.get('payment');
 
@@ -46,7 +50,10 @@ export default function OrderTracking() {
   }, [id]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    requestAnimationFrame(() => {
+      const c = messagesContainerRef.current;
+      if (c) c.scrollTop = c.scrollHeight;
+    });
   }, [messages]);
 
   const setupSocket = () => {
@@ -55,10 +62,14 @@ export default function OrderTracking() {
     });
     socketRef.current = socket;
 
-    socket.on('connect', () => {
+    const joinRooms = () => {
       socket.emit('join_order', id);
       socket.emit('join_chat', id);
-    });
+    };
+
+    if (socket.connected) joinRooms();
+    else socket.on('connect', joinRooms);
+    socket.on('reconnect', joinRooms);
 
     socket.on('order_status_update', (data) => {
       if (String(data.orderId) === String(id)) {
@@ -74,15 +85,23 @@ export default function OrderTracking() {
     });
 
     socket.on('new_message', (msg) => {
-      setMessages(prev => {
-        if (prev.find(m => m._id === msg._id)) return prev;
-        return [...prev, msg];
-      });
-    });
-
-    socket.on('reconnect', () => {
-      socket.emit('join_order', id);
-      socket.emit('join_chat', id);
+      const msgId = String(msg?._id || '');
+      if (msgId && seenIdsRef.current.has(msgId)) return;
+      const isFromMe = String(msg.sender?._id) === String(user?._id);
+      if (isFromMe) {
+        for (const [tempId, text] of pendingRef.current.entries()) {
+          if (text === msg.message) {
+            if (msgId) seenIdsRef.current.add(msgId);
+            pendingRef.current.delete(tempId);
+            setMessages(prev => prev.map(m => m._id === tempId ? msg : m));
+            return;
+          }
+        }
+        if (msgId) seenIdsRef.current.add(msgId);
+        return;
+      }
+      if (msgId) seenIdsRef.current.add(msgId);
+      setMessages(prev => [...prev, msg]);
     });
   };
 
@@ -97,7 +116,9 @@ export default function OrderTracking() {
   const fetchMessages = async () => {
     try {
       const res = await getChatMessages(id);
-      setMessages(res.data.messages || []);
+      const msgs = res.data.messages || [];
+      msgs.forEach(m => { if (m._id) seenIdsRef.current.add(m._id); });
+      setMessages(msgs);
     } catch (_) {}
   };
 
@@ -107,16 +128,44 @@ export default function OrderTracking() {
     if (!text || sending) return;
     setSending(true);
     setNewMessage('');
+    const tempId = `temp_${Date.now()}_${Math.random()}`;
+    const optimistic = {
+      _id: tempId, message: text,
+      sender: { _id: user?._id, name: user?.name },
+      senderRole: user?.role,
+      createdAt: new Date().toISOString(),
+      _optimistic: true,
+    };
+    pendingRef.current.set(tempId, text);
+    seenIdsRef.current.add(tempId);
+    setMessages(prev => [...prev, optimistic]);
     try {
-      await sendChatMessage({ orderId: id, message: text });
+      const res = await sendChatMessage({ orderId: id, message: text });
+      const real = res.data.message;
+      if (real?._id) seenIdsRef.current.add(real._id);
+      pendingRef.current.delete(tempId);
+      setMessages(prev => prev.map(m => m._id === tempId ? real : m));
     } catch (_) {
+      pendingRef.current.delete(tempId);
+      seenIdsRef.current.delete(tempId);
+      setMessages(prev => prev.filter(m => m._id !== tempId));
       setNewMessage(text);
     } finally {
       setSending(false);
     }
   };
 
-  const handleNewChatMessage = () => {
+  const handleNewChatMessage = (msg) => {
+    if (msg) {
+      const msgId = msg._id;
+      if (msgId && seenIdsRef.current.has(msgId)) {
+        // Already in state — just switch tab
+        setActiveTab('chat');
+        return;
+      }
+      if (msgId) seenIdsRef.current.add(msgId);
+      setMessages(prev => [...prev, msg]);
+    }
     setActiveTab('chat');
   };
 
@@ -131,6 +180,11 @@ export default function OrderTracking() {
   const showMap = !['delivered', 'cancelled'].includes(order.status);
 
   return (
+    <div className="customer-dashboard">
+      <CustomerSidebar />
+      <div className="customer-main">
+        <div className="customer-topbar"><h1 className="customer-page-title">Order Tracking</h1></div>
+        <div className="customer-content">
     <div className="tracking-page container">
       <ChatNotification
         activeOrderIds={[id]}
@@ -277,7 +331,7 @@ export default function OrderTracking() {
 
       {activeTab === 'chat' && (
         <div className="chat-tab">
-          <div className="chat-messages">
+          <div className="chat-messages" ref={messagesContainerRef}>
             {messages.length === 0 && (
               <div className="chat-empty">
                 <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
@@ -293,7 +347,6 @@ export default function OrderTracking() {
                 </div>
               );
             })}
-            <div ref={messagesEndRef} />
           </div>
           <form className="chat-input-bar" onSubmit={handleSendMessage}>
             <input
@@ -310,6 +363,9 @@ export default function OrderTracking() {
           </form>
         </div>
       )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

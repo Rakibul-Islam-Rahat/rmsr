@@ -43,6 +43,7 @@ export default function AdminDashboard() {
     <div className="dashboard-layout">
       {/* Sidebar */}
       <aside className="dashboard-sidebar">
+        <Link to="/" className="sidebar-rmsr-home">RMSR Home</Link>
         <div className="sidebar-logo">
           <div className="sidebar-logo-icon">R</div>
           <div><div className="sidebar-brand">RMSR Admin</div><div className="sidebar-sub">Control Panel</div></div>
@@ -52,6 +53,7 @@ export default function AdminDashboard() {
           <Link to="/admin/restaurants" className="sidebar-link"><FiGrid />Restaurants</Link>
           <Link to="/admin/users" className="sidebar-link"><FiUsers />Users</Link>
           <Link to="/admin/orders" className="sidebar-link"><FiPackage />Orders</Link>
+          <Link to="/admin/earnings" className="sidebar-link"><FiDollarSign />Earnings</Link>
         </nav>
         <button className="sidebar-logout" onClick={handleLogout}><FiLogOut />Logout</button>
       </aside>
@@ -60,6 +62,7 @@ export default function AdminDashboard() {
       <main className="dashboard-main">
         <div className="dashboard-topbar">
           <h1 className="dashboard-title">Dashboard Overview</h1>
+          
         </div>
 
         {loading ? <div className="page-loader"><div className="spinner" /></div> : (
