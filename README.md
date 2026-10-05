@@ -96,3 +96,86 @@ RMSR connects the major participants in the food delivery workflow through a sin
 - **Administrators** can manage users, restaurants, orders, and platform operations.
 
 The platform combines ordering, payment, communication, notifications, and delivery tracking into one system.
+
+## 🚀 Key Features
+
+### 👤 Customer
+
+- Browse and search restaurants
+- Filter and sort restaurants by cuisine, rating, delivery speed, and delivery fee
+- Browse menus with categories, images, descriptions, and prices
+- Add items to cart with cross-restaurant protection
+- Place orders and schedule orders for later
+- Online payment through SSLCommerz
+- Cash on Delivery
+- Live order status tracking
+- Real-time chat with restaurants and riders
+- Loyalty points and reward redemption
+- AI-powered food recommendations
+- Push notifications
+- Email order confirmations
+
+### 🏪 Restaurant Owner
+
+- Restaurant registration and admin approval workflow
+- Restaurant profile management
+- Menu creation and management
+- Food image upload through Cloudinary
+- Accept, reject, and update orders in real time
+- Open/closed restaurant status
+- Revenue and order statistics
+- Payment breakdown analytics
+- Restaurant settings and profile management
+
+### 🛵 Delivery Rider
+
+- Online/offline availability status
+- View available delivery orders
+- Accept delivery requests
+- Update delivery status
+- GPS-based live location sharing
+- Direct communication with customers and restaurants
+- Customer and restaurant contact options
+
+### 🛡️ Administration
+
+- Platform-wide dashboard
+- User statistics
+- Restaurant management
+- Restaurant approval/rejection
+- User activation/deactivation
+- Order monitoring
+- Order status filtering
+- Restaurant featuring/unfeaturing
+- Revenue and platform statistics
+
+### ⚡ Real-Time & Communication
+
+- Real-time order updates using Socket.IO
+- Real-time chat
+- Live rider location updates
+- Firebase push notifications
+- Email notifications through Nodemailer
+
+### 💳 Payment & Ordering
+
+- SSLCommerz payment integration
+- bKash
+- Nagad
+- Rocket
+- Cash on Delivery
+- Order scheduling
+- Order status management
+
+### 🤖 AI & Personalization
+
+- AI-powered food recommendations
+- Loyalty and reward system
+- Personalized food discovery
+
+### 🔍 Search Engine Optimization
+
+- Search-engine-friendly public pages
+- SEO-focused page content
+- Publicly accessible deployed platform
+- Search visibility for **"BRUR food"**
