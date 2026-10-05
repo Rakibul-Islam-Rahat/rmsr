@@ -80,3 +80,19 @@ RMSR provides a complete digital ordering workflow connecting customers, restaur
 - **Bangladeshi Taka (৳ BDT)**
 
 ---
+## 🎯 Problem Statement
+
+Food ordering around university campuses and local communities is often fragmented. Customers may need to contact restaurants through phone calls or social media, while restaurants and delivery riders have limited tools for managing orders, payments, and delivery status in one place.
+
+RMSR was developed to provide a centralized food ordering and delivery platform for the BRUR community in Rangpur, Bangladesh.
+
+## 💡 Solution
+
+RMSR connects the major participants in the food delivery workflow through a single platform:
+
+- **Customers** can discover restaurants, browse menus, place orders, make payments, and track deliveries.
+- **Restaurant owners** can manage their restaurants, menus, incoming orders, and business information.
+- **Riders** can receive delivery requests, update delivery status, and share their live location.
+- **Administrators** can manage users, restaurants, orders, and platform operations.
+
+The platform combines ordering, payment, communication, notifications, and delivery tracking into one system.
