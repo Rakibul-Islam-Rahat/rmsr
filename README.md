@@ -27,3 +27,6 @@ RMSR provides a complete digital ordering workflow connecting customers, restaur
 - Search visibility for the query **"BRUR food"**
 
 ---
+## 📸 Platform Preview
+
+![RMSR Food Ordering Platform](screenshots/homepage.png)
